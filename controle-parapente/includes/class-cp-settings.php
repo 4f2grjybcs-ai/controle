@@ -16,6 +16,7 @@ class CP_Settings {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register' ) );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
 	}
 
 	public static function defaults() {
@@ -24,6 +25,10 @@ class CP_Settings {
 			'workshop_address'   => '',
 			'workshop_phone'     => '',
 			'workshop_approval'  => '',
+			'workshop_email'     => '',
+			'workshop_website'   => '',
+			'logo_id'            => 0,
+			'accent_color'       => '#c0643f',
 			'notify_email'       => get_option( 'admin_email' ),
 			'reference_prefix'   => 'CP',
 			'validity_months'    => 24,
@@ -48,6 +53,47 @@ class CP_Settings {
 			return $settings;
 		}
 		return isset( $settings[ $key ] ) ? $settings[ $key ] : null;
+	}
+
+	/**
+	 * URL du logo de l'atelier (ou '').
+	 *
+	 * @param string $size Taille d'image.
+	 */
+	public static function logo_url( $size = 'medium' ) {
+		$id = (int) self::get( 'logo_id' );
+		if ( ! $id ) {
+			return '';
+		}
+		$src = wp_get_attachment_image_src( $id, $size );
+		return $src ? $src[0] : '';
+	}
+
+	public static function enqueue( $hook ) {
+		if ( false === strpos( (string) $hook, 'cp-settings' ) ) {
+			return;
+		}
+		wp_enqueue_media();
+		wp_add_inline_script(
+			'media-editor',
+			"jQuery(function($){var f;$('#cp-logo-pick').on('click',function(e){e.preventDefault();if(f){f.open();return;}f=wp.media({title:'Logo',library:{type:'image'},multiple:false});f.on('select',function(){var a=f.state().get('selection').first().toJSON();$('#cp-logo_id').val(a.id);$('#cp-logo-preview').attr('src',(a.sizes&&a.sizes.medium?a.sizes.medium.url:a.url)).show();$('#cp-logo-remove').show();});f.open();});$('#cp-logo-remove').on('click',function(e){e.preventDefault();$('#cp-logo_id').val('');$('#cp-logo-preview').hide();$(this).hide();});});"
+		);
+	}
+
+	private static function logo_row( $name, $s ) {
+		$url = self::logo_url();
+		?>
+		<tr>
+			<th scope="row"><?php esc_html_e( 'Logo', 'controle-parapente' ); ?></th>
+			<td>
+				<input type="hidden" id="cp-logo_id" name="<?php echo esc_attr( $name ); ?>[logo_id]" value="<?php echo esc_attr( $s['logo_id'] ); ?>" />
+				<img id="cp-logo-preview" src="<?php echo esc_url( $url ); ?>" alt="" style="max-height:80px;display:<?php echo $url ? 'block' : 'none'; ?>;margin-bottom:8px;" />
+				<button type="button" class="button" id="cp-logo-pick"><?php esc_html_e( 'Choisir le logo', 'controle-parapente' ); ?></button>
+				<button type="button" class="button-link" id="cp-logo-remove" style="<?php echo $url ? '' : 'display:none'; ?>"><?php esc_html_e( 'Retirer', 'controle-parapente' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Affiché en haut de l\'espace atelier et du rapport client.', 'controle-parapente' ); ?></p>
+			</td>
+		</tr>
+		<?php
 	}
 
 	public static function add_menu() {
@@ -83,6 +129,11 @@ class CP_Settings {
 				$out[ $key ] = sanitize_textarea_field( $input[ $key ] );
 			}
 		}
+		$out['workshop_email']   = isset( $input['workshop_email'] ) && is_email( $input['workshop_email'] ) ? sanitize_email( $input['workshop_email'] ) : '';
+		$out['workshop_website'] = isset( $input['workshop_website'] ) ? esc_url_raw( $input['workshop_website'] ) : '';
+		$out['logo_id']          = isset( $input['logo_id'] ) ? absint( $input['logo_id'] ) : 0;
+		$color                   = isset( $input['accent_color'] ) ? sanitize_hex_color( $input['accent_color'] ) : '';
+		$out['accent_color']     = $color ? $color : $out['accent_color'];
 		if ( isset( $input['notify_email'] ) && is_email( $input['notify_email'] ) ) {
 			$out['notify_email'] = sanitize_email( $input['notify_email'] );
 		}
@@ -117,7 +168,11 @@ class CP_Settings {
 					self::text_row( $name, 'workshop_name', __( 'Nom de l\'atelier', 'controle-parapente' ), $s );
 					self::textarea_row( $name, 'workshop_address', __( 'Adresse', 'controle-parapente' ), $s );
 					self::text_row( $name, 'workshop_phone', __( 'Téléphone', 'controle-parapente' ), $s );
+					self::text_row( $name, 'workshop_email', __( 'E-mail affiché sur le rapport', 'controle-parapente' ), $s, 'email' );
+					self::text_row( $name, 'workshop_website', __( 'Site web', 'controle-parapente' ), $s, 'url' );
 					self::text_row( $name, 'workshop_approval', __( 'N° d\'agrément / habilitation', 'controle-parapente' ), $s );
+					self::logo_row( $name, $s );
+					self::text_row( $name, 'accent_color', __( 'Couleur d\'accent du rapport', 'controle-parapente' ), $s, 'color' );
 					self::text_row( $name, 'notify_email', __( 'E-mail de notification', 'controle-parapente' ), $s, 'email' );
 					self::text_row( $name, 'reference_prefix', __( 'Préfixe des références', 'controle-parapente' ), $s );
 					?>
@@ -144,6 +199,7 @@ class CP_Settings {
 
 				<h2><?php esc_html_e( 'Shortcodes', 'controle-parapente' ); ?></h2>
 				<p><code>[cp_demande_controle]</code> — <?php esc_html_e( 'formulaire de demande de contrôle.', 'controle-parapente' ); ?></p>
+				<p><code>[cp_atelier]</code> — <?php esc_html_e( 'espace atelier (réservé à l\'équipe connectée) : créer les contrôles, faire les mesures, remettre le rapport.', 'controle-parapente' ); ?></p>
 				<p><code>[cp_suivi_controle]</code> — <?php esc_html_e( 'suivi d\'un contrôle par le client (référence + e-mail).', 'controle-parapente' ); ?></p>
 
 				<?php submit_button(); ?>
@@ -162,7 +218,7 @@ class CP_Settings {
 			esc_attr( $name ),
 			esc_attr( $key ),
 			esc_attr( $s[ $key ] ),
-			'number' === $type ? 'small-text' : 'regular-text'
+			in_array( $type, array( 'number', 'color' ), true ) ? 'small-text' : 'regular-text'
 		);
 	}
 

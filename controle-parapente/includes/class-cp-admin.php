@@ -36,6 +36,13 @@ class CP_Admin {
 		if ( ! self::is_screen() ) {
 			return;
 		}
+		self::enqueue_fiche_assets();
+	}
+
+	/**
+	 * Styles et scripts de la fiche (admin et espace atelier).
+	 */
+	public static function enqueue_fiche_assets() {
 		wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), CP_VERSION );
 		wp_enqueue_script( 'cp-admin', CP_URL . 'assets/js/admin.js', array(), CP_VERSION, true );
 		wp_enqueue_script( 'cp-trim', CP_URL . 'assets/js/trim.js', array(), CP_VERSION, true );
@@ -136,7 +143,7 @@ class CP_Admin {
 		<?php
 		if ( 'auto-draft' !== $post->post_status && $d['reference'] ) {
 			$url = wp_nonce_url( admin_url( 'admin-post.php?action=cp_certificate&post=' . $post->ID ), 'cp_certificate_' . $post->ID );
-			printf( '<p><a class="button" target="_blank" href="%s">%s</a></p>', esc_url( $url ), esc_html__( 'Imprimer la fiche / le certificat', 'controle-parapente' ) );
+			printf( '<p><a class="button" target="_blank" href="%s">%s</a></p>', esc_url( $url ), esc_html__( 'Imprimer la fiche atelier', 'controle-parapente' ) );
 			if ( CP_Controle::has_certificate( $d['status'] ) ) {
 				printf(
 					'<p class="description">%s<br /><input type="text" readonly class="widefat" onclick="this.select()" value="%s" /></p>',
@@ -345,8 +352,18 @@ class CP_Admin {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return;
 		}
+		$raw = isset( $_POST['cp'] ) && is_array( $_POST['cp'] ) ? wp_unslash( $_POST['cp'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- nettoyé par CP_Controle::sanitize().
+		self::process( $post_id, $raw, ! empty( $_POST['cp_notify'] ) );
+	}
 
-		$raw        = isset( $_POST['cp'] ) && is_array( $_POST['cp'] ) ? wp_unslash( $_POST['cp'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- nettoyé par CP_Controle::sanitize().
+	/**
+	 * Enregistre une fiche envoyée (admin ou espace atelier). Droits et nonce vérifiés par l'appelant.
+	 *
+	 * @param int   $post_id ID.
+	 * @param array $raw     Données brutes (déjà wp_unslash).
+	 * @param bool  $notify  Prévenir le client si le statut change.
+	 */
+	public static function process( $post_id, array $raw, $notify ) {
 		$data       = CP_Controle::sanitize( $raw, true );
 		$old_status = (string) get_post_meta( $post_id, CP_Controle::META_STATUS, true );
 
@@ -357,7 +374,7 @@ class CP_Admin {
 		CP_Controle::save( $post_id, $data );
 		self::sync_title( $post_id );
 
-		if ( $old_status && $old_status !== $data['status'] && ! empty( $_POST['cp_notify'] ) ) {
+		if ( $old_status && $old_status !== $data['status'] && $notify ) {
 			CP_Emails::status_changed( $post_id );
 		}
 	}

@@ -19,6 +19,7 @@ if ( $override && __FILE__ !== $override ) {
 	return;
 }
 
+$logo         = CP_Settings::logo_url( 'medium' );
 $types        = CP_Controle::equipment_types();
 $certs        = CP_Controle::certifications();
 $verdicts     = CP_Controle::verdicts();
@@ -49,8 +50,9 @@ $fmt          = static function ( $n ) {
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<meta name="robots" content="noindex, nofollow" />
-	<title><?php echo esc_html( sprintf( __( 'Fiche de contrôle %s', 'controle-parapente' ), $d['reference'] ) ); ?></title>
+	<title><?php echo esc_html( sprintf( __( 'Rapport de contrôle %s', 'controle-parapente' ), $d['reference'] ) ); ?></title>
 	<link rel="stylesheet" href="<?php echo esc_url( CP_URL . 'assets/css/certificate.css?ver=' . CP_VERSION ); ?>" />
+	<style>:root { --cp-accent: <?php echo esc_html( $settings['accent_color'] ); ?>; }</style>
 </head>
 <body>
 	<div class="cp-toolbar">
@@ -59,26 +61,47 @@ $fmt          = static function ( $n ) {
 
 	<main class="cp-sheet">
 		<header class="cp-head">
-			<div>
-				<h1><?php esc_html_e( 'Fiche de contrôle', 'controle-parapente' ); ?></h1>
-				<p class="cp-ref"><?php echo esc_html( $d['reference'] ); ?></p>
+			<div class="cp-identity">
+				<?php if ( $logo ) : ?>
+					<img class="cp-logo" src="<?php echo esc_url( $logo ); ?>" alt="<?php echo esc_attr( $settings['workshop_name'] ); ?>" />
+				<?php else : ?>
+					<span class="cp-mark" aria-hidden="true"><?php echo esc_html( mb_substr( $settings['workshop_name'], 0, 1 ) ); ?></span>
+				<?php endif; ?>
+				<div>
+					<strong class="cp-workshop-name"><?php echo esc_html( $settings['workshop_name'] ); ?></strong>
+					<?php if ( $settings['workshop_approval'] ) : ?>
+						<span class="cp-small"><?php echo esc_html( sprintf( __( 'Agrément : %s', 'controle-parapente' ), $settings['workshop_approval'] ) ); ?></span>
+					<?php endif; ?>
+				</div>
 			</div>
-			<div class="cp-workshop">
-				<strong><?php echo esc_html( $settings['workshop_name'] ); ?></strong><br />
-				<?php echo nl2br( esc_html( $settings['workshop_address'] ) ); ?>
+			<address class="cp-contact">
+				<?php if ( $settings['workshop_address'] ) : ?>
+					<span><?php echo nl2br( esc_html( $settings['workshop_address'] ) ); ?></span>
+				<?php endif; ?>
 				<?php if ( $settings['workshop_phone'] ) : ?>
-					<br /><?php echo esc_html( $settings['workshop_phone'] ); ?>
+					<span><?php echo esc_html( $settings['workshop_phone'] ); ?></span>
 				<?php endif; ?>
-				<?php if ( $settings['workshop_approval'] ) : ?>
-					<br /><?php echo esc_html( sprintf( __( 'Agrément : %s', 'controle-parapente' ), $settings['workshop_approval'] ) ); ?>
+				<?php if ( $settings['workshop_email'] ) : ?>
+					<span><?php echo esc_html( $settings['workshop_email'] ); ?></span>
 				<?php endif; ?>
-			</div>
+				<?php if ( $settings['workshop_website'] ) : ?>
+					<span><?php echo esc_html( preg_replace( '#^https?://#', '', untrailingslashit( $settings['workshop_website'] ) ) ); ?></span>
+				<?php endif; ?>
+			</address>
 		</header>
 
+		<section class="cp-hero">
+			<p class="cp-eyebrow"><?php esc_html_e( 'Rapport de contrôle', 'controle-parapente' ); ?> · <?php echo esc_html( $d['reference'] ); ?></p>
+			<h1><?php echo esc_html( CP_Controle::equipment_label( $d ) ); ?></h1>
+			<?php if ( $d['pilot_name'] ) : ?>
+				<p class="cp-for"><?php echo esc_html( sprintf( __( 'Préparé pour %s', 'controle-parapente' ), $d['pilot_name'] ) ); ?></p>
+			<?php endif; ?>
+		</section>
+
 		<section class="cp-verdict-box cp-verdict-<?php echo esc_attr( $d['verdict'] ? $d['verdict'] : 'none' ); ?>">
-			<div>
+			<div class="cp-verdict-main">
 				<span class="cp-small"><?php esc_html_e( 'Résultat', 'controle-parapente' ); ?></span>
-				<strong><?php echo esc_html( $d['verdict'] ? $verdicts[ $d['verdict'] ] : __( 'En cours', 'controle-parapente' ) ); ?></strong>
+				<strong><?php echo esc_html( $d['verdict'] ? $verdicts[ $d['verdict'] ] : __( 'Contrôle en cours', 'controle-parapente' ) ); ?></strong>
 			</div>
 			<div>
 				<span class="cp-small"><?php esc_html_e( 'Date du contrôle', 'controle-parapente' ); ?></span>
@@ -90,18 +113,36 @@ $fmt          = static function ( $n ) {
 			</div>
 		</section>
 
+		<?php if ( $d['comments'] ) : ?>
+			<section class="cp-note">
+				<h2><?php esc_html_e( 'Le mot de l\'atelier', 'controle-parapente' ); ?></h2>
+				<p><?php echo nl2br( esc_html( $d['comments'] ) ); ?></p>
+				<?php if ( $d['technician'] ) : ?>
+					<p class="cp-sign">— <?php echo esc_html( $d['technician'] ); ?></p>
+				<?php endif; ?>
+			</section>
+		<?php endif; ?>
+
 		<section class="cp-cols">
 			<div>
 				<h2><?php esc_html_e( 'Équipement', 'controle-parapente' ); ?></h2>
 				<table class="cp-kv">
-					<tr><th><?php esc_html_e( 'Type', 'controle-parapente' ); ?></th><td><?php echo esc_html( $types[ $d['equipment_type'] ] ?? '' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Marque / modèle', 'controle-parapente' ); ?></th><td><?php echo esc_html( trim( $d['brand'] . ' ' . $d['model'] ) ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Taille', 'controle-parapente' ); ?></th><td><?php echo esc_html( $d['size'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'N° de série', 'controle-parapente' ); ?></th><td><?php echo esc_html( $d['serial'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Année', 'controle-parapente' ); ?></th><td><?php echo esc_html( $d['year'] ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Homologation', 'controle-parapente' ); ?></th><td><?php echo esc_html( $certs[ $d['certification'] ] ?? '' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'PTV', 'controle-parapente' ); ?></th><td><?php echo esc_html( $d['weight_range'] ? $d['weight_range'] . ' kg' : '' ); ?></td></tr>
-					<tr><th><?php esc_html_e( 'Heures de vol', 'controle-parapente' ); ?></th><td><?php echo esc_html( $d['flight_hours'] ); ?></td></tr>
+					<?php
+					$equipment = array(
+						__( 'Type', 'controle-parapente' )            => $types[ $d['equipment_type'] ] ?? '',
+						__( 'Marque / modèle', 'controle-parapente' ) => trim( $d['brand'] . ' ' . $d['model'] ),
+						__( 'Taille', 'controle-parapente' )          => $d['size'],
+						__( 'N° de série', 'controle-parapente' )     => $d['serial'],
+						__( 'Année', 'controle-parapente' )           => $d['year'],
+						__( 'Homologation', 'controle-parapente' )    => $d['certification'] ? ( $certs[ $d['certification'] ] ?? '' ) : '',
+						__( 'PTV', 'controle-parapente' )             => $d['weight_range'] ? $d['weight_range'] . ' kg' : '',
+						__( 'Couleurs', 'controle-parapente' )        => $d['color'],
+						__( 'Heures de vol', 'controle-parapente' )   => $d['flight_hours'],
+					);
+					foreach ( array_filter( $equipment, 'strlen' ) as $label => $value ) :
+						?>
+						<tr><th><?php echo esc_html( $label ); ?></th><td><?php echo esc_html( $value ); ?></td></tr>
+					<?php endforeach; ?>
 				</table>
 			</div>
 			<div>
@@ -116,7 +157,8 @@ $fmt          = static function ( $n ) {
 				<h2><?php esc_html_e( 'Prestations', 'controle-parapente' ); ?></h2>
 				<p><?php echo esc_html( implode( ', ', $services ) ); ?></p>
 				<?php if ( $d['technician'] ) : ?>
-					<p><?php echo esc_html( sprintf( __( 'Contrôleur : %s', 'controle-parapente' ), $d['technician'] ) ); ?></p>
+					<h2><?php esc_html_e( 'Contrôleur', 'controle-parapente' ); ?></h2>
+					<p><?php echo esc_html( $d['technician'] ); ?></p>
 				<?php endif; ?>
 			</div>
 		</section>
@@ -212,13 +254,6 @@ $fmt          = static function ( $n ) {
 			</section>
 		<?php endif; ?>
 
-		<?php if ( $d['comments'] ) : ?>
-			<section>
-				<h2><?php esc_html_e( 'Observations', 'controle-parapente' ); ?></h2>
-				<p><?php echo nl2br( esc_html( $d['comments'] ) ); ?></p>
-			</section>
-		<?php endif; ?>
-
 		<?php if ( $is_admin && $d['internal_notes'] ) : ?>
 			<section class="cp-internal">
 				<h2><?php esc_html_e( 'Notes internes (non communiquées au client)', 'controle-parapente' ); ?></h2>
@@ -230,7 +265,27 @@ $fmt          = static function ( $n ) {
 			<div class="cp-signature">
 				<span class="cp-small"><?php esc_html_e( 'Signature et cachet de l\'atelier', 'controle-parapente' ); ?></span>
 			</div>
-			<p class="cp-small"><?php echo nl2br( esc_html( $settings['certificate_footer'] ) ); ?></p>
+			<div class="cp-foot-text">
+				<p class="cp-thanks"><?php esc_html_e( 'Merci de votre confiance, et bons vols !', 'controle-parapente' ); ?></p>
+				<p class="cp-small"><?php echo nl2br( esc_html( $settings['certificate_footer'] ) ); ?></p>
+				<p class="cp-small">
+					<?php
+					echo esc_html(
+						implode(
+							' · ',
+							array_filter(
+								array(
+									$settings['workshop_name'],
+									str_replace( array( "\r\n", "\n" ), ', ', $settings['workshop_address'] ),
+									$settings['workshop_phone'],
+									$settings['workshop_email'],
+								)
+							)
+						)
+					);
+					?>
+				</p>
+			</div>
 		</footer>
 	</main>
 </body>

@@ -118,6 +118,34 @@ class CP_Emails {
 		);
 	}
 
+	/**
+	 * Envoie au client le lien vers son rapport de contrôle.
+	 *
+	 * @return bool
+	 */
+	public static function report( $post_id ) {
+		$d        = CP_Controle::get( $post_id );
+		$verdicts = CP_Controle::verdicts();
+
+		$body  = sprintf( __( 'Bonjour %s,', 'controle-parapente' ), $d['pilot_name'] ) . "\n\n";
+		$body .= sprintf( __( 'Le contrôle de votre %s est terminé. Vous trouverez votre rapport complet ici :', 'controle-parapente' ), CP_Controle::equipment_label( $d ) ) . "\n";
+		$body .= CP_Controle::public_certificate_url( $post_id ) . "\n\n";
+		$body .= self::summary( $d ) . "\n";
+		if ( $d['verdict'] ) {
+			$body .= sprintf( __( 'Résultat : %s', 'controle-parapente' ), $verdicts[ $d['verdict'] ] ) . "\n";
+		}
+		if ( $d['next_date'] ) {
+			$body .= sprintf( __( 'Prochain contrôle conseillé : %s', 'controle-parapente' ), CP_Controle::format_date( $d['next_date'] ) ) . "\n";
+		}
+		$body .= "\n" . __( 'Merci de votre confiance et bons vols !', 'controle-parapente' );
+
+		return self::send(
+			$d['email'],
+			sprintf( __( 'Votre rapport de contrôle %s', 'controle-parapente' ), $d['reference'] ),
+			$body
+		);
+	}
+
 	public static function reminder( $post_id ) {
 		$d = CP_Controle::get( $post_id );
 

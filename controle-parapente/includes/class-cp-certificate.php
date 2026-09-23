@@ -23,7 +23,8 @@ class CP_Certificate {
 		if ( ! $post_id || CP_Post_Type::POST_TYPE !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
 			wp_die( esc_html__( 'Accès refusé.', 'controle-parapente' ), 403 );
 		}
-		self::render( $post_id, true );
+		// Avec &client=1 : aperçu exact de ce que reçoit le client (sans notes internes).
+		self::render( $post_id, empty( $_GET['client'] ) );
 	}
 
 	public static function public_view() {

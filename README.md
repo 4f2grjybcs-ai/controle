@@ -3,6 +3,16 @@
 Plugin WordPress pour gérer les **contrôles (révisions) de parapentes** d'un atelier :
 demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi client et rappels automatiques.
 
+## Espace atelier (nouveau)
+
+À l'activation, le plugin crée une page **« Atelier »** (shortcode `[cp_atelier]`), réservée à l'équipe connectée. Elle s'affiche en plein écran avec son propre style, doux et chaleureux, indépendamment du thème. Un lien « Atelier » apparaît aussi dans la barre d'admin.
+
+- **Liste des contrôles** : filtres « À l'atelier / Terminés / Rendus / Tous », recherche (référence, pilote, aile, n° de série). Tous les rapports restent stockés et consultables.
+- **＋ Nouveau contrôle** : le numéro (ex. `CP-2026-0012`) est attribué immédiatement par le système.
+- **Fiche à onglets** : *Client & aile* · *Atelier · mesures* (porosité, résistance, calage, visuel) · *Conclusion* · *Rapport client*. Panneau « Suivi » (statut, verdict, dates) toujours visible. Barre « Enregistrer » fixe, alerte si des modifications ne sont pas enregistrées, raccourci Ctrl/Cmd + S.
+- **Rapport client** : aperçu exact de ce que reçoit le client, impression / PDF, envoi par e-mail, copie du lien.
+- Le rapport affiche votre **logo**, vos **coordonnées** et votre **couleur d'accent** (*Contrôles → Réglages*).
+
 ## Fonctionnalités
 
 - **Formulaire de demande** (`[cp_demande_controle]`) : coordonnées du pilote, équipement (marque, modèle, taille, n° de série, homologation…), prestations (contrôle, recalage, réparation, repliage secours), mode de dépôt. Une référence unique est attribuée (ex. `CP-2026-0001`) et des e-mails sont envoyés à l'atelier et au client. Protections : nonce, champ pot de miel anti-robots, limite de 5 demandes/heure par IP, consentement RGPD.
