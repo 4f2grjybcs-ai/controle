@@ -23,6 +23,7 @@ define( 'CP_URL', plugin_dir_url( __FILE__ ) );
 
 require_once CP_DIR . 'includes/class-cp-settings.php';
 require_once CP_DIR . 'includes/class-cp-controle.php';
+require_once CP_DIR . 'includes/class-cp-trim.php';
 require_once CP_DIR . 'includes/class-cp-post-type.php';
 require_once CP_DIR . 'includes/class-cp-admin.php';
 require_once CP_DIR . 'includes/class-cp-emails.php';

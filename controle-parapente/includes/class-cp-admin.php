@@ -24,6 +24,7 @@ class CP_Admin {
 		add_action( 'restrict_manage_posts', array( __CLASS__, 'filters' ) );
 		add_action( 'pre_get_posts', array( __CLASS__, 'apply_filters' ) );
 		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 10, 2 );
+		add_action( 'wp_ajax_cp_search_previous', array( __CLASS__, 'ajax_search_previous' ) );
 	}
 
 	public static function is_screen() {
@@ -37,6 +38,7 @@ class CP_Admin {
 		}
 		wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), CP_VERSION );
 		wp_enqueue_script( 'cp-admin', CP_URL . 'assets/js/admin.js', array(), CP_VERSION, true );
+		wp_enqueue_script( 'cp-trim', CP_URL . 'assets/js/trim.js', array(), CP_VERSION, true );
 		wp_localize_script(
 			'cp-admin',
 			'cpAdmin',
@@ -45,6 +47,8 @@ class CP_Admin {
 				'porosityWarn'   => (float) CP_Settings::get( 'porosity_warn' ),
 				'trimTolerance'  => (float) CP_Settings::get( 'trim_tolerance' ),
 				'validityMonths' => (int) CP_Settings::get( 'validity_months' ),
+				'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
+				'searchNonce'    => wp_create_nonce( 'cp_search' ),
 			)
 		);
 	}
@@ -58,7 +62,7 @@ class CP_Admin {
 		add_meta_box( 'cp-result', __( 'Statut & résultat', 'controle-parapente' ), array( __CLASS__, 'box_result' ), $pt, 'side', 'high' );
 		add_meta_box( 'cp-pilot', __( 'Pilote / client', 'controle-parapente' ), array( __CLASS__, 'box_pilot' ), $pt, 'normal', 'high' );
 		add_meta_box( 'cp-equipment', __( 'Équipement', 'controle-parapente' ), array( __CLASS__, 'box_equipment' ), $pt, 'normal', 'high' );
-		add_meta_box( 'cp-request', __( 'Demande du client', 'controle-parapente' ), array( __CLASS__, 'box_request' ), $pt, 'normal', 'default' );
+		add_meta_box( 'cp-request', __( 'Prestations demandées', 'controle-parapente' ), array( __CLASS__, 'box_request' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-porosity', __( 'Porosité du tissu', 'controle-parapente' ), array( __CLASS__, 'box_porosity' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-strength', __( 'Résistance tissu & suspentes', 'controle-parapente' ), array( __CLASS__, 'box_strength' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-trim', __( 'Calage (longueurs de suspentage)', 'controle-parapente' ), array( __CLASS__, 'box_trim' ), $pt, 'normal', 'default' );
@@ -107,6 +111,12 @@ class CP_Admin {
 		$d = self::data( $post );
 		wp_nonce_field( self::NONCE, 'cp_nonce' );
 
+		// Nouvelle fiche créée à l'atelier : le client vient d'apporter son matériel.
+		if ( 'auto-draft' === $post->post_status ) {
+			$d['status']     = 'recue';
+			$d['check_date'] = current_time( 'Y-m-d' );
+		}
+
 		if ( $d['reference'] ) {
 			printf( '<p class="cp-reference">%s <strong>%s</strong></p>', esc_html__( 'Référence :', 'controle-parapente' ), esc_html( $d['reference'] ) );
 		}
@@ -139,6 +149,14 @@ class CP_Admin {
 
 	public static function box_pilot( $post ) {
 		$d = self::data( $post );
+		?>
+		<div class="cp-previous">
+			<label for="cp-previous-search"><strong><?php esc_html_e( 'Client ou aile déjà venus ?', 'controle-parapente' ); ?></strong></label>
+			<input type="search" id="cp-previous-search" class="regular-text" autocomplete="off" placeholder="<?php esc_attr_e( 'Nom, e-mail, n° de série, modèle, référence…', 'controle-parapente' ); ?>" />
+			<span class="description"><?php esc_html_e( 'Reprend les coordonnées, l\'équipement et, pour la même aile, la structure et les cotes usine du calage.', 'controle-parapente' ); ?></span>
+			<ul class="cp-previous-results" hidden></ul>
+		</div>
+		<?php
 		echo '<div class="cp-grid">';
 		self::field( 'pilot_name', __( 'Nom et prénom', 'controle-parapente' ), $d['pilot_name'] );
 		self::field( 'email', __( 'E-mail', 'controle-parapente' ), $d['email'], 'email' );
@@ -178,7 +196,7 @@ class CP_Admin {
 		}
 		echo '</div>';
 		self::select( 'drop_off', __( 'Mode de dépôt', 'controle-parapente' ), $d['drop_off'], CP_Controle::drop_off_modes() );
-		self::textarea( 'client_notes', __( 'Remarques du client', 'controle-parapente' ), $d['client_notes'] );
+		self::textarea( 'client_notes', __( 'Remarques du client (incidents, dommages connus…)', 'controle-parapente' ), $d['client_notes'] );
 		echo '</div>';
 	}
 
@@ -284,31 +302,7 @@ class CP_Admin {
 
 	public static function box_trim( $post ) {
 		$d = self::data( $post );
-		printf(
-			'<p class="description">%s</p>',
-			esc_html(
-				sprintf(
-					/* translators: %s: tolérance en mm. */
-					__( 'Longueurs en mm. Tolérance : ± %s mm par rapport aux cotes constructeur.', 'controle-parapente' ),
-					CP_Settings::get( 'trim_tolerance' )
-				)
-			)
-		);
-		self::repeatable(
-			'trim',
-			array(
-				'row'         => array( __( 'Rangée / suspente', 'controle-parapente' ), 'text' ),
-				'theoretical' => array( __( 'Cote constructeur (mm)', 'controle-parapente' ), 'number', 'step="1"' ),
-				'measured'    => array( __( 'Mesurée (mm)', 'controle-parapente' ), 'number', 'step="1"' ),
-			),
-			$d['trim'],
-			__( 'Écart', 'controle-parapente' )
-		);
-		printf(
-			'<p><label><input type="checkbox" name="cp[trim_adjusted]" value="1"%s /> %s</label></p>',
-			checked( $d['trim_adjusted'], '1', false ),
-			esc_html__( 'Aile recalée pendant le contrôle', 'controle-parapente' )
-		);
+		CP_Trim::render_admin_box( $d['trim'], $d['trim_adjusted'] );
 	}
 
 	public static function box_visual( $post ) {
@@ -393,6 +387,67 @@ class CP_Admin {
 			)
 		);
 		add_action( 'save_post_' . CP_Post_Type::POST_TYPE, array( __CLASS__, 'save' ), 10, 2 );
+	}
+
+	/**
+	 * Recherche d'un contrôle précédent pour pré-remplir une nouvelle fiche.
+	 */
+	public static function ajax_search_previous() {
+		check_ajax_referer( 'cp_search', 'nonce' );
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			wp_send_json_error( null, 403 );
+		}
+		$term    = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '';
+		$exclude = isset( $_GET['exclude'] ) ? absint( $_GET['exclude'] ) : 0;
+		if ( mb_strlen( $term ) < 2 ) {
+			wp_send_json_success( array() );
+		}
+
+		// Le titre contient référence, équipement, n° de série et pilote ; l'e-mail est en méta.
+		$ids = array_unique(
+			array_merge(
+				get_posts(
+					array(
+						'post_type'      => CP_Post_Type::POST_TYPE,
+						'post_status'    => 'publish',
+						's'              => $term,
+						'posts_per_page' => 10,
+						'fields'         => 'ids',
+						'post__not_in'   => array( $exclude ),
+					)
+				),
+				get_posts(
+					array(
+						'post_type'      => CP_Post_Type::POST_TYPE,
+						'post_status'    => 'publish',
+						'posts_per_page' => 10,
+						'fields'         => 'ids',
+						'post__not_in'   => array( $exclude ),
+						'meta_query'     => array( array( 'key' => CP_Controle::META_EMAIL, 'value' => strtolower( $term ), 'compare' => 'LIKE' ) ),
+					)
+				)
+			)
+		);
+		rsort( $ids );
+
+		$keys    = array( 'pilot_name', 'email', 'phone', 'address', 'equipment_type', 'brand', 'model', 'size', 'serial', 'year', 'certification', 'weight_range', 'color', 'flight_hours' );
+		$results = array();
+		foreach ( array_slice( $ids, 0, 10 ) as $id ) {
+			$d      = CP_Controle::get( $id );
+			$fields = array_intersect_key( $d, array_flip( $keys ) );
+			$fields['last_check'] = $d['check_date'];
+			$results[] = array(
+				'label'  => get_the_title( $id ) . ( $d['check_date'] ? ' (' . CP_Controle::format_date( $d['check_date'] ) . ')' : '' ),
+				'fields' => $fields,
+				'trim'   => array(
+					'sides'     => $d['trim']['sides'],
+					'offset'    => $d['trim']['offset'],
+					'structure' => $d['trim']['structure'],
+					'factory'   => (object) $d['trim']['factory'],
+				),
+			);
+		}
+		wp_send_json_success( $results );
 	}
 
 	/* ------------------------------------------------------------------ */

@@ -133,16 +133,6 @@ class CP_Controle {
 		);
 	}
 
-	public static function default_trim_rows() {
-		$rows = array();
-		foreach ( array( 'A', 'B', 'C', 'D', 'F' ) as $row ) {
-			foreach ( array( 'G', 'D' ) as $side ) {
-				$rows[] = array( 'row' => $row . ' ' . $side, 'theoretical' => '', 'measured' => '' );
-			}
-		}
-		return $rows;
-	}
-
 	/**
 	 * Structure vide d'un contrôle.
 	 */
@@ -176,7 +166,7 @@ class CP_Controle {
 			'fabric_strength'   => '',
 			'fabric_result'     => '',
 			'lines'             => self::default_line_rows(),
-			'trim'              => self::default_trim_rows(),
+			'trim'              => CP_Trim::defaults(),
 			'trim_adjusted'     => '',
 			'visual'            => array(),
 			'repairs'           => '',
@@ -194,6 +184,7 @@ class CP_Controle {
 	public static function get( $post_id ) {
 		$data = get_post_meta( $post_id, self::META_DATA, true );
 		$data = wp_parse_args( is_array( $data ) ? $data : array(), self::defaults() );
+		$data['trim'] = CP_Trim::normalize( $data['trim'] );
 
 		$data['reference'] = (string) get_post_meta( $post_id, self::META_REFERENCE, true );
 		$data['status']    = (string) get_post_meta( $post_id, self::META_STATUS, true );
@@ -285,7 +276,7 @@ class CP_Controle {
 
 		$d['porosity'] = self::sanitize_rows( $raw, 'porosity', array( 'zone' => 'text', 'value' => 'number' ) );
 		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'measured' => 'number', 'minimum' => 'number' ) );
-		$d['trim']     = self::sanitize_rows( $raw, 'trim', array( 'row' => 'text', 'theoretical' => 'number', 'measured' => 'number' ) );
+		$d['trim']     = CP_Trim::sanitize( isset( $raw['trim'] ) ? $raw['trim'] : array() );
 
 		$d['visual'] = array();
 		$states      = self::visual_states();
@@ -398,20 +389,6 @@ class CP_Controle {
 			return '';
 		}
 		return (float) $measured >= (float) $minimum ? 'ok' : 'bad';
-	}
-
-	public static function trim_deviation( $theoretical, $measured ) {
-		if ( ! is_numeric( $theoretical ) || ! is_numeric( $measured ) ) {
-			return null;
-		}
-		return (float) $measured - (float) $theoretical;
-	}
-
-	public static function trim_level( $deviation ) {
-		if ( null === $deviation ) {
-			return '';
-		}
-		return abs( $deviation ) <= (float) CP_Settings::get( 'trim_tolerance' ) ? 'ok' : 'bad';
 	}
 
 	public static function equipment_label( array $data ) {

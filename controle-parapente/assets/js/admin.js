@@ -7,8 +7,9 @@
 	var cfg = {
 		porosityMin: parseFloat( raw.porosityMin ) || 0,
 		porosityWarn: parseFloat( raw.porosityWarn ) || 0,
-		trimTolerance: parseFloat( raw.trimTolerance ) || 0,
-		validityMonths: parseInt( raw.validityMonths, 10 ) || 0
+		validityMonths: parseInt( raw.validityMonths, 10 ) || 0,
+		ajaxUrl: raw.ajaxUrl,
+		searchNonce: raw.searchNonce
 	};
 
 	function num( value ) {
@@ -54,16 +55,6 @@
 				return setComputed( row, '', '' );
 			}
 			setComputed( row, m >= min ? 'Conforme' : 'Non conforme', m >= min ? 'ok' : 'bad' );
-		},
-		trim: function ( row ) {
-			var t = field( row, 'theoretical' );
-			var m = field( row, 'measured' );
-			if ( t === null || m === null ) {
-				return setComputed( row, '', '' );
-			}
-			var dev = Math.round( ( m - t ) * 10 ) / 10;
-			var ok = Math.abs( dev ) <= cfg.trimTolerance;
-			setComputed( row, ( dev > 0 ? '+' : '' ) + dev + ' mm', ok ? 'ok' : 'bad' );
 		}
 	};
 
@@ -128,6 +119,68 @@
 			var parts = checkDate.value.split( '-' ).map( Number );
 			var d = new Date( Date.UTC( parts[ 0 ], parts[ 1 ] - 1 + cfg.validityMonths, parts[ 2 ] ) );
 			nextDate.value = d.toISOString().slice( 0, 10 );
+		} );
+	}
+	// Reprendre un client / une aile déjà venus : pré-remplit la fiche.
+	var search = document.getElementById( 'cp-previous-search' );
+	var results = document.querySelector( '.cp-previous-results' );
+	if ( search && results && cfg.ajaxUrl ) {
+		var timer = null;
+		var found = [];
+		var postId = document.getElementById( 'post_ID' );
+
+		search.addEventListener( 'input', function () {
+			clearTimeout( timer );
+			var q = search.value.trim();
+			if ( q.length < 2 ) {
+				results.hidden = true;
+				return;
+			}
+			timer = setTimeout( function () {
+				var url = cfg.ajaxUrl + '?action=cp_search_previous&nonce=' + encodeURIComponent( cfg.searchNonce ) +
+					'&q=' + encodeURIComponent( q ) + '&exclude=' + ( postId ? postId.value : 0 );
+				fetch( url, { credentials: 'same-origin' } )
+					.then( function ( r ) {
+						return r.json();
+					} )
+					.then( function ( json ) {
+						found = json && json.success ? json.data : [];
+						results.innerHTML = '';
+						if ( ! found.length ) {
+							results.innerHTML = '<li class="cp-previous-empty">Aucun contrôle trouvé.</li>';
+						}
+						found.forEach( function ( item, i ) {
+							var li = document.createElement( 'li' );
+							var btn = document.createElement( 'button' );
+							btn.type = 'button';
+							btn.className = 'button-link';
+							btn.textContent = item.label;
+							btn.setAttribute( 'data-index', i );
+							li.appendChild( btn );
+							results.appendChild( li );
+						} );
+						results.hidden = false;
+					} );
+			}, 250 );
+		} );
+
+		results.addEventListener( 'click', function ( e ) {
+			var index = e.target.getAttribute( 'data-index' );
+			if ( index === null ) {
+				return;
+			}
+			var item = found[ index ];
+			Object.keys( item.fields ).forEach( function ( key ) {
+				var el = document.getElementById( 'cp-' + key );
+				if ( el && item.fields[ key ] !== null && item.fields[ key ] !== undefined ) {
+					el.value = item.fields[ key ];
+				}
+			} );
+			if ( window.cpTrimLoad && ( ! window.cpTrimHasFactory() || window.confirm( 'Remplacer la structure et les cotes usine du calage par celles de ce contrôle ?' ) ) ) {
+				window.cpTrimLoad( item.trim );
+			}
+			results.hidden = true;
+			search.value = '';
 		} );
 	}
 } )();

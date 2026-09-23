@@ -98,3 +98,10 @@ h2 {
 	.cp-cols, .cp-head, .cp-verdict-box { display: block; }
 	.cp-workshop { text-align: left; margin-top: 8px; }
 }
+h3 { font-size: 12px; margin: 10px 0 4px; }
+.cp-table .center { text-align: center; }
+.cp-group-head td { background: #f0f3f6; font-weight: 600; }
+.cp-brakes td { background: #fcf5f5; }
+.cp-trim-detail { font-size: 11px; }
+.cp-trim-detail th, .cp-trim-detail td { padding: 2px 4px; }
+.cp-table td:first-child { white-space: nowrap; }

@@ -9,22 +9,34 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 - **Fiche de contrôle** dans l'admin (menu *Contrôles*) :
   - porosité (porosimètre, en secondes) avec évaluation automatique Conforme / À surveiller / Non conforme ;
   - résistance du tissu (Bettsomètre) et des suspentes (rupture mesurée vs minimum requis) ;
-  - calage : cotes constructeur vs mesurées, calcul de l'écart et contrôle de la tolérance ;
+  - **calage** (voir ci-dessous) ;
   - contrôle visuel (12 points : extrados, intrados, cloisons, suspentes, élévateurs, maillons, accélérateur, freins…) ;
   - réparations, observations pour le client, notes internes ;
   - statut (demande → réceptionnée → en cours → terminée → rendue), verdict (navigable / avec réserves / non navigable), date du prochain contrôle proposée automatiquement.
+- **Saisie à l'atelier** : quand le client apporte son matériel, *Contrôles → Nouveau contrôle* ouvre une fiche au statut « Aile réceptionnée » avec la date du jour. Le champ « Client ou aile déjà venus ? » retrouve un ancien contrôle (nom, e-mail, n° de série, modèle, référence) et reprend les coordonnées, l'équipement et, pour le calage, la structure du suspentage et les cotes usine. L'e-mail du client est facultatif (sans e-mail, aucun message n'est envoyé).
 - **Liste des contrôles** : colonnes pilote, équipement, statut, verdict, échéance (en rouge si dépassée), filtres par statut et par échéance, recherche par référence / pilote / aile / n° de série.
 - **Certificat / fiche imprimable** (A4, « enregistrer en PDF » depuis le navigateur). Lien public sécurisé par clé secrète envoyé au client ; les notes internes n'y apparaissent jamais.
 - **Suivi client** (`[cp_suivi_controle]`) : le client saisit sa référence + son e-mail pour voir l'avancement, le résultat et accéder à sa fiche.
 - **E-mails** : nouvelle demande (atelier + client), changement de statut (optionnel, case à cocher), **rappel automatique** X jours avant l'échéance du prochain contrôle (un seul rappel par échéance, pas de rappel si la même aile a déjà un contrôle plus récent).
 - **Réglages** : coordonnées de l'atelier, n° d'agrément, préfixe des références, validité d'un contrôle (24 mois par défaut), délai de rappel, seuils de porosité, tolérance de calage, textes du formulaire et du certificat.
 
+## Calage
+
+1. **Structure du suspentage** : pour chaque rangée A, B, C, D, indiquez le nombre de groupes puis le nombre de suspentes de chaque groupe (ex. A : 3 groupes → 4, 4, 2). Les **freins** sont une rangée à part. Les suspentes sont numérotées A1, A2… dans l'ordre des groupes.
+2. **Côtés** : gauche + droite, ou un seul côté.
+3. **Offset de mesure** (mm) : ajouté à toutes les mesures, 1ère et finale (correction du banc, maillons, tension…).
+4. **1ère mesure** : saisissez les cotes usine et les longueurs brutes lues sur le banc (Entrée = case suivante dans la colonne). Enregistrez ; cochez « 1ère mesure figée » pour ne plus pouvoir la modifier.
+5. Travaillez sur le suspentage, puis faites la **mesure finale** (le bouton « Copier la 1ère mesure » pré-remplit les cases non retouchées).
+6. Le **tableau des décalages par groupe** donne pour chaque groupe et chaque côté : écart moyen à la 1ère mesure, **correction suggérée**, écart moyen final, ajustement réellement réalisé, écart maximum et état (conforme / hors tolérance).
+
+Écart = mesure brute + offset − cote usine. Les deux tableaux (par groupe et par suspente) figurent sur la fiche imprimable.
+
 ## Installation
 
 1. Copier le dossier `controle-parapente/` dans `wp-content/plugins/` (ou le zipper et l'installer via *Extensions → Ajouter → Téléverser*).
 2. Activer **Contrôle Parapente**.
 3. Aller dans *Contrôles → Réglages* pour renseigner l'atelier et les seuils.
-4. Créer une page « Demande de contrôle » contenant `[cp_demande_controle]` et une page « Suivi de mon contrôle » contenant `[cp_suivi_controle]`.
+4. (Facultatif) Créer une page « Demande de contrôle » contenant `[cp_demande_controle]` et une page « Suivi de mon contrôle » contenant `[cp_suivi_controle]`. Si les clients vous apportent directement leur matériel, vous pouvez vous passer de ces pages et tout saisir dans l'admin.
 
 Pour créer le zip : `cd controle && zip -r controle-parapente.zip controle-parapente`
 

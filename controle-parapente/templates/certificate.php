@@ -40,7 +40,6 @@ $measured     = static function ( $rows, $field ) {
 };
 $d['porosity'] = $measured( $d['porosity'], 'value' );
 $d['lines']    = $measured( $d['lines'], 'measured' );
-$d['trim']     = $measured( $d['trim'], 'measured' );
 $fmt          = static function ( $n ) {
 	return '' === $n ? '—' : number_format_i18n( (float) $n, floor( (float) $n ) == (float) $n ? 0 : 1 );
 };
@@ -172,36 +171,7 @@ $fmt          = static function ( $n ) {
 		</section>
 		<?php endif; ?>
 
-		<?php if ( $d['trim'] ) : ?>
-			<section>
-				<h2><?php esc_html_e( 'Calage', 'controle-parapente' ); ?></h2>
-				<table class="cp-table">
-					<thead><tr><th><?php esc_html_e( 'Rangée', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Cote (mm)', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Mesurée (mm)', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Écart (mm)', 'controle-parapente' ); ?></th></tr></thead>
-					<tbody>
-					<?php foreach ( $d['trim'] as $row ) : ?>
-						<?php
-						$dev   = CP_Controle::trim_deviation( $row['theoretical'], $row['measured'] );
-						$level = CP_Controle::trim_level( $dev );
-						?>
-						<tr>
-							<td><?php echo esc_html( $row['row'] ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $row['theoretical'] ) ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $row['measured'] ) ); ?></td>
-							<td class="num lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( null === $dev ? '—' : ( $dev > 0 ? '+' : '' ) . $fmt( $dev ) ); ?></td>
-						</tr>
-					<?php endforeach; ?>
-					</tbody>
-				</table>
-				<p class="cp-small">
-					<?php
-					echo esc_html( sprintf( __( 'Tolérance : ± %s mm.', 'controle-parapente' ), $settings['trim_tolerance'] ) );
-					if ( $d['trim_adjusted'] ) {
-						echo ' ' . esc_html__( 'L\'aile a été recalée lors du contrôle.', 'controle-parapente' );
-					}
-					?>
-				</p>
-			</section>
-		<?php endif; ?>
+		<?php CP_Trim::render_certificate( $d['trim'], $d['trim_adjusted'] ); ?>
 
 		<?php
 		$visual = array_filter(
