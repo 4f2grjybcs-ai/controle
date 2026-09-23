@@ -1,0 +1,100 @@
+/* Contrôle Parapente — fiche imprimable */
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	background: #e9ebee;
+	color: #1d2327;
+	font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.cp-toolbar {
+	text-align: center;
+	padding: 12px;
+}
+.cp-toolbar button {
+	padding: 8px 18px;
+	font-size: 14px;
+	border: 0;
+	border-radius: 4px;
+	background: #0a4b8c;
+	color: #fff;
+	cursor: pointer;
+}
+.cp-sheet {
+	max-width: 210mm;
+	margin: 0 auto 24px;
+	padding: 14mm 14mm 10mm;
+	background: #fff;
+	box-shadow: 0 1px 6px rgba( 0, 0, 0, 0.15 );
+}
+.cp-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	border-bottom: 2px solid #0a4b8c;
+	padding-bottom: 10px;
+	margin-bottom: 14px;
+}
+h1 { margin: 0; font-size: 22px; color: #0a4b8c; }
+h2 {
+	font-size: 14px;
+	margin: 16px 0 6px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #0a4b8c;
+}
+.cp-ref { margin: 4px 0 0; font-size: 16px; font-weight: 700; }
+.cp-workshop { text-align: right; }
+.cp-small { font-size: 11px; color: #646970; display: block; }
+.cp-verdict-box {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	border-radius: 6px;
+	border: 2px solid #c3c4c7;
+}
+.cp-verdict-box strong { font-size: 16px; }
+.cp-verdict-navigable { border-color: #1a7f37; background: #eef8f0; }
+.cp-verdict-navigable_reserve { border-color: #bf8700; background: #fff8e5; }
+.cp-verdict-non_navigable { border-color: #b32d2e; background: #fcf0f0; }
+.cp-cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 24px;
+}
+.cp-kv { width: 100%; border-collapse: collapse; }
+.cp-kv th { text-align: left; font-weight: 600; width: 45%; padding: 2px 0; }
+.cp-kv td { padding: 2px 0; }
+.cp-table { width: 100%; border-collapse: collapse; }
+.cp-table th,
+.cp-table td { border: 1px solid #dcdcde; padding: 4px 6px; text-align: left; }
+.cp-table thead th { background: #f0f3f6; }
+.cp-table .num { text-align: right; white-space: nowrap; }
+.lvl-ok, .st-ok { color: #1a7f37; font-weight: 600; }
+.lvl-warn, .st-surveille { color: #9a6700; font-weight: 600; }
+.lvl-bad, .st-nok { color: #b32d2e; font-weight: 600; }
+.st-repare { color: #0a4b8c; font-weight: 600; }
+.cp-internal { border: 1px dashed #b32d2e; padding: 0 10px 6px; }
+.cp-foot {
+	margin-top: 22px;
+	display: flex;
+	gap: 24px;
+	align-items: flex-end;
+}
+.cp-signature {
+	flex: 0 0 60mm;
+	height: 28mm;
+	border: 1px solid #c3c4c7;
+	padding: 4px 6px;
+}
+@media print {
+	body { background: #fff; }
+	.cp-toolbar { display: none; }
+	.cp-sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+	section, tr { page-break-inside: avoid; }
+	@page { size: A4; margin: 12mm; }
+}
+@media ( max-width: 640px ) {
+	.cp-cols, .cp-head, .cp-verdict-box { display: block; }
+	.cp-workshop { text-align: left; margin-top: 8px; }
+}

@@ -1,0 +1,65 @@
+/* Contrôle Parapente — admin */
+.cp-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 220px, 1fr ) );
+	gap: 0 16px;
+}
+.cp-field label,
+.cp-field .cp-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+.cp-field--wide {
+	grid-column: 1 / -1;
+}
+.cp-check {
+	display: block;
+	margin: 2px 0;
+}
+.cp-reference {
+	font-size: 14px;
+}
+.cp-repeat td {
+	vertical-align: middle;
+}
+.cp-repeat .cp-col-action {
+	width: 30px;
+	text-align: center;
+}
+.cp-remove-row {
+	color: #b32d2e;
+	cursor: pointer;
+}
+.cp-computed {
+	white-space: nowrap;
+	font-weight: 600;
+}
+.lvl-ok { color: #1a7f37; }
+.lvl-warn { color: #9a6700; }
+.lvl-bad { color: #b32d2e; }
+.cp-visual td:first-child {
+	width: 35%;
+}
+.cp-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	background: #f0f0f1;
+	color: #1d2327;
+}
+.cp-status-demande { background: #e7f0fb; color: #0a4b8c; }
+.cp-status-recue,
+.cp-status-en_cours { background: #fff4d6; color: #7a5300; }
+.cp-status-attente { background: #fde7d9; color: #8a3a00; }
+.cp-status-terminee { background: #dff3e4; color: #135c27; }
+.cp-status-rendue { background: #e6e6e6; color: #3c434a; }
+.cp-status-annulee { background: #f6dcdc; color: #8a1f1f; }
+.cp-verdict-navigable { background: #1a7f37; color: #fff; }
+.cp-verdict-navigable_reserve { background: #bf8700; color: #fff; }
+.cp-verdict-non_navigable { background: #b32d2e; color: #fff; }
+.cp-overdue {
+	color: #b32d2e;
+	font-weight: 600;
+}

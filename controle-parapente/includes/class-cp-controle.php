@@ -1,0 +1,464 @@
+<?php
+/**
+ * Modèle d'un contrôle : champs, statuts, verdicts, lecture/écriture des données.
+ *
+ * @package ControleParapente
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class CP_Controle {
+
+	const META_DATA      = '_cp_data';
+	const META_REFERENCE = '_cp_reference';
+	const META_STATUS    = '_cp_status';
+	const META_VERDICT   = '_cp_verdict';
+	const META_EMAIL     = '_cp_email';
+	const META_SERIAL    = '_cp_serial';
+	const META_NEXT_DATE = '_cp_next_date';
+	const META_TOKEN     = '_cp_token';
+	const META_REMINDED  = '_cp_reminder_sent';
+
+	public static function statuses() {
+		return array(
+			'demande'  => __( 'Demande reçue', 'controle-parapente' ),
+			'recue'    => __( 'Aile réceptionnée', 'controle-parapente' ),
+			'en_cours' => __( 'Contrôle en cours', 'controle-parapente' ),
+			'attente'  => __( 'En attente (pièces / accord client)', 'controle-parapente' ),
+			'terminee' => __( 'Contrôle terminé', 'controle-parapente' ),
+			'rendue'   => __( 'Aile rendue au client', 'controle-parapente' ),
+			'annulee'  => __( 'Annulée', 'controle-parapente' ),
+		);
+	}
+
+	public static function verdicts() {
+		return array(
+			''                  => __( '— Non défini —', 'controle-parapente' ),
+			'navigable'         => __( 'Navigable', 'controle-parapente' ),
+			'navigable_reserve' => __( 'Navigable avec réserves', 'controle-parapente' ),
+			'non_navigable'     => __( 'Non navigable', 'controle-parapente' ),
+		);
+	}
+
+	public static function equipment_types() {
+		return array(
+			'parapente' => __( 'Parapente solo', 'controle-parapente' ),
+			'biplace'   => __( 'Parapente biplace', 'controle-parapente' ),
+			'speed'     => __( 'Speed-riding / mini-voile', 'controle-parapente' ),
+			'secours'   => __( 'Parachute de secours', 'controle-parapente' ),
+			'sellette'  => __( 'Sellette', 'controle-parapente' ),
+		);
+	}
+
+	public static function certifications() {
+		return array(
+			''       => '—',
+			'EN-A'   => 'EN / LTF A',
+			'EN-B'   => 'EN / LTF B',
+			'EN-C'   => 'EN / LTF C',
+			'EN-D'   => 'EN / LTF D',
+			'CCC'    => 'CCC',
+			'EN-926' => 'EN 12491 (secours)',
+			'autre'  => __( 'Autre / non homologuée', 'controle-parapente' ),
+		);
+	}
+
+	public static function services() {
+		return array(
+			'controle' => __( 'Contrôle complet (révision)', 'controle-parapente' ),
+			'calage'   => __( 'Recalage des suspentes', 'controle-parapente' ),
+			'repar'    => __( 'Réparation', 'controle-parapente' ),
+			'secours'  => __( 'Repliage parachute de secours', 'controle-parapente' ),
+		);
+	}
+
+	public static function drop_off_modes() {
+		return array(
+			'atelier' => __( 'Dépôt à l\'atelier', 'controle-parapente' ),
+			'poste'   => __( 'Envoi postal / transporteur', 'controle-parapente' ),
+		);
+	}
+
+	/**
+	 * Points de contrôle visuel.
+	 */
+	public static function visual_items() {
+		return array(
+			'extrados'    => __( 'Tissu extrados (déchirures, usure, UV)', 'controle-parapente' ),
+			'intrados'    => __( 'Tissu intrados', 'controle-parapente' ),
+			'bord'        => __( 'Bord d\'attaque, joncs, entrées d\'air', 'controle-parapente' ),
+			'cloisons'    => __( 'Cloisons, diagonales, renforts', 'controle-parapente' ),
+			'coutures'    => __( 'Coutures', 'controle-parapente' ),
+			'ancrages'    => __( 'Points d\'ancrage des suspentes', 'controle-parapente' ),
+			'suspentes'   => __( 'Suspentes (gaine, nœuds, abrasion)', 'controle-parapente' ),
+			'elevateurs'  => __( 'Élévateurs (sangles, coutures, marquage)', 'controle-parapente' ),
+			'maillons'    => __( 'Maillons / connecteurs', 'controle-parapente' ),
+			'accelerateur' => __( 'Système d\'accélérateur (poulies, drisses)', 'controle-parapente' ),
+			'freins'      => __( 'Poignées et drisses de frein', 'controle-parapente' ),
+			'etiquette'   => __( 'Étiquette et marquage d\'homologation', 'controle-parapente' ),
+		);
+	}
+
+	public static function visual_states() {
+		return array(
+			''          => '—',
+			'ok'        => __( 'Bon état', 'controle-parapente' ),
+			'surveille' => __( 'À surveiller', 'controle-parapente' ),
+			'repare'    => __( 'Réparé / remplacé', 'controle-parapente' ),
+			'nok'       => __( 'Non conforme', 'controle-parapente' ),
+			'na'        => __( 'Non applicable', 'controle-parapente' ),
+		);
+	}
+
+	public static function default_porosity_rows() {
+		return array(
+			array( 'zone' => __( 'Extrados — bord d\'attaque centre', 'controle-parapente' ), 'value' => '' ),
+			array( 'zone' => __( 'Extrados — bord d\'attaque gauche', 'controle-parapente' ), 'value' => '' ),
+			array( 'zone' => __( 'Extrados — bord d\'attaque droit', 'controle-parapente' ), 'value' => '' ),
+			array( 'zone' => __( 'Extrados — milieu de corde centre', 'controle-parapente' ), 'value' => '' ),
+			array( 'zone' => __( 'Intrados — bord d\'attaque centre', 'controle-parapente' ), 'value' => '' ),
+			array( 'zone' => __( 'Intrados — milieu de corde centre', 'controle-parapente' ), 'value' => '' ),
+		);
+	}
+
+	public static function default_line_rows() {
+		return array(
+			array( 'line' => 'A (basse, centrale)', 'measured' => '', 'minimum' => '' ),
+			array( 'line' => 'B (basse, centrale)', 'measured' => '', 'minimum' => '' ),
+			array( 'line' => 'C (basse, centrale)', 'measured' => '', 'minimum' => '' ),
+			array( 'line' => 'A (haute)', 'measured' => '', 'minimum' => '' ),
+			array( 'line' => 'Frein (basse)', 'measured' => '', 'minimum' => '' ),
+		);
+	}
+
+	public static function default_trim_rows() {
+		$rows = array();
+		foreach ( array( 'A', 'B', 'C', 'D', 'F' ) as $row ) {
+			foreach ( array( 'G', 'D' ) as $side ) {
+				$rows[] = array( 'row' => $row . ' ' . $side, 'theoretical' => '', 'measured' => '' );
+			}
+		}
+		return $rows;
+	}
+
+	/**
+	 * Structure vide d'un contrôle.
+	 */
+	public static function defaults() {
+		return array(
+			// Pilote.
+			'pilot_name'        => '',
+			'email'             => '',
+			'phone'             => '',
+			'address'           => '',
+			// Équipement.
+			'equipment_type'    => 'parapente',
+			'brand'             => '',
+			'model'             => '',
+			'size'              => '',
+			'serial'            => '',
+			'year'              => '',
+			'certification'     => '',
+			'weight_range'      => '',
+			'color'             => '',
+			'flight_hours'      => '',
+			'last_check'        => '',
+			// Demande.
+			'services'          => array( 'controle' ),
+			'drop_off'          => 'atelier',
+			'client_notes'      => '',
+			// Contrôle.
+			'check_date'        => '',
+			'technician'        => '',
+			'porosity'          => self::default_porosity_rows(),
+			'fabric_strength'   => '',
+			'fabric_result'     => '',
+			'lines'             => self::default_line_rows(),
+			'trim'              => self::default_trim_rows(),
+			'trim_adjusted'     => '',
+			'visual'            => array(),
+			'repairs'           => '',
+			'comments'          => '',
+			'internal_notes'    => '',
+		);
+	}
+
+	/**
+	 * Données complètes d'un contrôle.
+	 *
+	 * @param int $post_id ID.
+	 * @return array
+	 */
+	public static function get( $post_id ) {
+		$data = get_post_meta( $post_id, self::META_DATA, true );
+		$data = wp_parse_args( is_array( $data ) ? $data : array(), self::defaults() );
+
+		$data['reference'] = (string) get_post_meta( $post_id, self::META_REFERENCE, true );
+		$data['status']    = (string) get_post_meta( $post_id, self::META_STATUS, true );
+		$data['verdict']   = (string) get_post_meta( $post_id, self::META_VERDICT, true );
+		$data['next_date'] = (string) get_post_meta( $post_id, self::META_NEXT_DATE, true );
+
+		if ( '' === $data['status'] ) {
+			$data['status'] = 'demande';
+		}
+		return $data;
+	}
+
+	/**
+	 * Enregistre les données (déjà nettoyées) d'un contrôle.
+	 *
+	 * @param int   $post_id ID.
+	 * @param array $data    Données.
+	 */
+	public static function save( $post_id, array $data ) {
+		$core = array( 'reference', 'status', 'verdict', 'next_date' );
+		$meta = array_diff_key( $data, array_flip( $core ) );
+		$meta = array_intersect_key( $meta, self::defaults() );
+
+		update_post_meta( $post_id, self::META_DATA, $meta );
+		update_post_meta( $post_id, self::META_EMAIL, strtolower( $data['email'] ) );
+		update_post_meta( $post_id, self::META_SERIAL, $data['serial'] );
+
+		if ( isset( $data['status'] ) && array_key_exists( $data['status'], self::statuses() ) ) {
+			update_post_meta( $post_id, self::META_STATUS, $data['status'] );
+		}
+		if ( isset( $data['verdict'] ) && array_key_exists( $data['verdict'], self::verdicts() ) ) {
+			update_post_meta( $post_id, self::META_VERDICT, $data['verdict'] );
+		}
+		if ( isset( $data['next_date'] ) ) {
+			update_post_meta( $post_id, self::META_NEXT_DATE, $data['next_date'] );
+		}
+		if ( ! get_post_meta( $post_id, self::META_TOKEN, true ) ) {
+			update_post_meta( $post_id, self::META_TOKEN, wp_generate_password( 32, false, false ) );
+		}
+		if ( ! get_post_meta( $post_id, self::META_REFERENCE, true ) ) {
+			update_post_meta( $post_id, self::META_REFERENCE, self::next_reference() );
+		}
+	}
+
+	/**
+	 * Nettoie les données envoyées par un formulaire (admin ou public).
+	 *
+	 * @param array $raw   Données brutes (déjà wp_unslash).
+	 * @param bool  $admin Champs techniques autorisés.
+	 * @return array
+	 */
+	public static function sanitize( array $raw, $admin = false ) {
+		$d = array();
+
+		foreach ( array( 'pilot_name', 'phone', 'brand', 'model', 'size', 'serial', 'weight_range', 'color' ) as $key ) {
+			$d[ $key ] = isset( $raw[ $key ] ) ? sanitize_text_field( $raw[ $key ] ) : '';
+		}
+		$d['email']        = isset( $raw['email'] ) ? sanitize_email( $raw['email'] ) : '';
+		$d['address']      = isset( $raw['address'] ) ? sanitize_textarea_field( $raw['address'] ) : '';
+		$d['client_notes'] = isset( $raw['client_notes'] ) ? sanitize_textarea_field( $raw['client_notes'] ) : '';
+		$d['year']         = isset( $raw['year'] ) && '' !== $raw['year'] ? (string) min( 2100, max( 1980, absint( $raw['year'] ) ) ) : '';
+		$d['flight_hours'] = isset( $raw['flight_hours'] ) && '' !== $raw['flight_hours'] ? (string) absint( $raw['flight_hours'] ) : '';
+		$d['last_check']   = self::sanitize_date( isset( $raw['last_check'] ) ? $raw['last_check'] : '' );
+
+		$d['equipment_type'] = self::sanitize_choice( $raw, 'equipment_type', self::equipment_types(), 'parapente' );
+		$d['certification']  = self::sanitize_choice( $raw, 'certification', self::certifications(), '' );
+		$d['drop_off']       = self::sanitize_choice( $raw, 'drop_off', self::drop_off_modes(), 'atelier' );
+
+		$d['services'] = array();
+		if ( isset( $raw['services'] ) && is_array( $raw['services'] ) ) {
+			$d['services'] = array_values( array_intersect( array_map( 'sanitize_key', $raw['services'] ), array_keys( self::services() ) ) );
+		}
+
+		if ( ! $admin ) {
+			return $d;
+		}
+
+		$d['check_date']     = self::sanitize_date( isset( $raw['check_date'] ) ? $raw['check_date'] : '' );
+		$d['next_date']      = self::sanitize_date( isset( $raw['next_date'] ) ? $raw['next_date'] : '' );
+		$d['technician']     = isset( $raw['technician'] ) ? sanitize_text_field( $raw['technician'] ) : '';
+		$d['fabric_strength'] = isset( $raw['fabric_strength'] ) ? sanitize_text_field( $raw['fabric_strength'] ) : '';
+		$d['fabric_result']  = self::sanitize_choice( $raw, 'fabric_result', array( '' => '', 'ok' => '', 'nok' => '' ), '' );
+		$d['trim_adjusted']  = ! empty( $raw['trim_adjusted'] ) ? '1' : '';
+		$d['repairs']        = isset( $raw['repairs'] ) ? sanitize_textarea_field( $raw['repairs'] ) : '';
+		$d['comments']       = isset( $raw['comments'] ) ? sanitize_textarea_field( $raw['comments'] ) : '';
+		$d['internal_notes'] = isset( $raw['internal_notes'] ) ? sanitize_textarea_field( $raw['internal_notes'] ) : '';
+		$d['status']         = self::sanitize_choice( $raw, 'status', self::statuses(), 'demande' );
+		$d['verdict']        = self::sanitize_choice( $raw, 'verdict', self::verdicts(), '' );
+
+		$d['porosity'] = self::sanitize_rows( $raw, 'porosity', array( 'zone' => 'text', 'value' => 'number' ) );
+		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'measured' => 'number', 'minimum' => 'number' ) );
+		$d['trim']     = self::sanitize_rows( $raw, 'trim', array( 'row' => 'text', 'theoretical' => 'number', 'measured' => 'number' ) );
+
+		$d['visual'] = array();
+		$states      = self::visual_states();
+		foreach ( array_keys( self::visual_items() ) as $item ) {
+			$state   = isset( $raw['visual'][ $item ]['state'] ) ? sanitize_key( $raw['visual'][ $item ]['state'] ) : '';
+			$comment = isset( $raw['visual'][ $item ]['comment'] ) ? sanitize_text_field( $raw['visual'][ $item ]['comment'] ) : '';
+			$d['visual'][ $item ] = array(
+				'state'   => array_key_exists( $state, $states ) ? $state : '',
+				'comment' => $comment,
+			);
+		}
+
+		return $d;
+	}
+
+	private static function sanitize_choice( $raw, $key, $choices, $default ) {
+		$value = isset( $raw[ $key ] ) ? sanitize_text_field( $raw[ $key ] ) : $default;
+		return array_key_exists( $value, $choices ) ? $value : $default;
+	}
+
+	public static function sanitize_date( $value ) {
+		$value = sanitize_text_field( (string) $value );
+		$date  = DateTime::createFromFormat( '!Y-m-d', $value );
+		return ( $date && $date->format( 'Y-m-d' ) === $value ) ? $value : '';
+	}
+
+	private static function sanitize_rows( $raw, $key, $schema ) {
+		$rows = array();
+		if ( empty( $raw[ $key ] ) || ! is_array( $raw[ $key ] ) ) {
+			return $rows;
+		}
+		foreach ( $raw[ $key ] as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$clean = array();
+			$empty = true;
+			foreach ( $schema as $field => $type ) {
+				$value = isset( $row[ $field ] ) ? trim( (string) $row[ $field ] ) : '';
+				if ( 'number' === $type ) {
+					$value = str_replace( ',', '.', $value );
+					$value = is_numeric( $value ) ? (string) ( 0 + $value ) : '';
+				} else {
+					$value = sanitize_text_field( $value );
+				}
+				if ( '' !== $value ) {
+					$empty = false;
+				}
+				$clean[ $field ] = $value;
+			}
+			if ( ! $empty ) {
+				$rows[] = $clean;
+			}
+		}
+		return $rows;
+	}
+
+	/**
+	 * Génère la prochaine référence : PREFIXE-AAAA-0001.
+	 */
+	public static function next_reference() {
+		$year   = gmdate( 'Y' );
+		$option = 'cp_counter_' . $year;
+		$count  = (int) get_option( $option, 0 ) + 1;
+		update_option( $option, $count, false );
+
+		return sprintf( '%s-%s-%04d', CP_Settings::get( 'reference_prefix' ), $year, $count );
+	}
+
+	/**
+	 * Date du prochain contrôle proposée à partir de la date de contrôle.
+	 *
+	 * @param string $check_date Date Y-m-d.
+	 * @return string
+	 */
+	public static function suggested_next_date( $check_date ) {
+		$months = (int) CP_Settings::get( 'validity_months' );
+		if ( '' === $check_date || $months <= 0 ) {
+			return '';
+		}
+		$date = DateTime::createFromFormat( '!Y-m-d', $check_date );
+		if ( ! $date ) {
+			return '';
+		}
+		$date->modify( '+' . $months . ' months' );
+		return $date->format( 'Y-m-d' );
+	}
+
+	/**
+	 * Évaluation d'une mesure de porosité : ok / warn / bad / ''.
+	 *
+	 * @param string $value Temps en secondes.
+	 */
+	public static function porosity_level( $value ) {
+		if ( '' === $value || ! is_numeric( $value ) ) {
+			return '';
+		}
+		$value = (float) $value;
+		if ( $value < (float) CP_Settings::get( 'porosity_min' ) ) {
+			return 'bad';
+		}
+		if ( $value < (float) CP_Settings::get( 'porosity_warn' ) ) {
+			return 'warn';
+		}
+		return 'ok';
+	}
+
+	public static function line_level( $measured, $minimum ) {
+		if ( ! is_numeric( $measured ) || ! is_numeric( $minimum ) ) {
+			return '';
+		}
+		return (float) $measured >= (float) $minimum ? 'ok' : 'bad';
+	}
+
+	public static function trim_deviation( $theoretical, $measured ) {
+		if ( ! is_numeric( $theoretical ) || ! is_numeric( $measured ) ) {
+			return null;
+		}
+		return (float) $measured - (float) $theoretical;
+	}
+
+	public static function trim_level( $deviation ) {
+		if ( null === $deviation ) {
+			return '';
+		}
+		return abs( $deviation ) <= (float) CP_Settings::get( 'trim_tolerance' ) ? 'ok' : 'bad';
+	}
+
+	public static function equipment_label( array $data ) {
+		$label = trim( $data['brand'] . ' ' . $data['model'] . ' ' . $data['size'] );
+		return '' !== $label ? $label : __( 'Équipement', 'controle-parapente' );
+	}
+
+	/**
+	 * Recherche un contrôle par référence + e-mail (suivi client).
+	 *
+	 * @return int|0
+	 */
+	public static function find_by_reference( $reference, $email ) {
+		$posts = get_posts(
+			array(
+				'post_type'      => CP_Post_Type::POST_TYPE,
+				'post_status'    => 'any',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'meta_query'     => array(
+					array( 'key' => self::META_REFERENCE, 'value' => $reference ),
+					array( 'key' => self::META_EMAIL, 'value' => strtolower( $email ) ),
+				),
+			)
+		);
+		return $posts ? (int) $posts[0] : 0;
+	}
+
+	public static function public_certificate_url( $post_id ) {
+		return add_query_arg(
+			array(
+				'cp_certificat' => rawurlencode( get_post_meta( $post_id, self::META_REFERENCE, true ) ),
+				'cle'           => get_post_meta( $post_id, self::META_TOKEN, true ),
+			),
+			home_url( '/' )
+		);
+	}
+
+	public static function has_certificate( $status ) {
+		return in_array( $status, array( 'terminee', 'rendue' ), true );
+	}
+
+	public static function format_date( $date ) {
+		if ( '' === $date ) {
+			return '—';
+		}
+		$ts = strtotime( $date . ' 12:00:00' );
+		return $ts ? date_i18n( get_option( 'date_format' ), $ts ) : '—';
+	}
+}

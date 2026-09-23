@@ -1,0 +1,131 @@
+/* Contrôle Parapente — formulaires publics */
+.cp-form fieldset {
+	border: 1px solid rgba( 0, 0, 0, 0.12 );
+	border-radius: 6px;
+	padding: 1em 1.2em;
+	margin: 0 0 1.2em;
+}
+.cp-form legend {
+	font-weight: 700;
+	padding: 0 0.4em;
+}
+.cp-form__grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 200px, 1fr ) );
+	gap: 0 1em;
+}
+.cp-form__field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.25em;
+}
+.cp-form__field input,
+.cp-form__field select,
+.cp-form__field textarea {
+	width: 100%;
+	box-sizing: border-box;
+}
+.cp-form__check {
+	display: block;
+	margin: 0.3em 0;
+}
+.cp-form--inline {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 1em;
+	align-items: flex-end;
+}
+.cp-form--inline .cp-form__field {
+	flex: 1 1 200px;
+}
+.cp-required {
+	color: #b32d2e;
+}
+.cp-hp {
+	position: absolute !important;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+.cp-button {
+	display: inline-block;
+	padding: 0.6em 1.4em;
+	border: 0;
+	border-radius: 4px;
+	background: #0a4b8c;
+	color: #fff !important;
+	text-decoration: none;
+	cursor: pointer;
+}
+.cp-button:hover {
+	background: #083a6c;
+}
+.cp-notice {
+	padding: 0.8em 1em;
+	border-radius: 4px;
+	margin: 0 0 1em;
+	border-left: 4px solid;
+}
+.cp-notice p,
+.cp-notice ul {
+	margin: 0;
+}
+.cp-notice--success { background: #e9f6ec; border-color: #1a7f37; }
+.cp-notice--error { background: #fbeaea; border-color: #b32d2e; }
+.cp-tracking {
+	margin-top: 1.5em;
+}
+.cp-steps {
+	display: flex;
+	flex-wrap: wrap;
+	list-style: none;
+	padding: 0;
+	margin: 1em 0;
+	counter-reset: cp-step;
+}
+.cp-steps li {
+	flex: 1 1 120px;
+	position: relative;
+	padding: 2.2em 0.3em 0;
+	text-align: center;
+	font-size: 0.9em;
+	color: #777;
+	counter-increment: cp-step;
+}
+.cp-steps li::before {
+	content: counter( cp-step );
+	position: absolute;
+	top: 0;
+	left: 50%;
+	transform: translateX( -50% );
+	width: 1.8em;
+	height: 1.8em;
+	line-height: 1.8em;
+	border-radius: 50%;
+	background: #ddd;
+	color: #555;
+}
+.cp-steps li.is-done { color: #1a7f37; }
+.cp-steps li.is-done::before { background: #1a7f37; color: #fff; content: "✓"; }
+.cp-steps li.is-current { color: #0a4b8c; font-weight: 700; }
+.cp-steps li.is-current::before { background: #0a4b8c; color: #fff; }
+.cp-details {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 0.3em 1em;
+}
+.cp-details dt { font-weight: 600; }
+.cp-details dd { margin: 0; }
+.cp-badge {
+	display: inline-block;
+	padding: 0.15em 0.7em;
+	border-radius: 1em;
+	background: #eee;
+	font-size: 0.9em;
+}
+.cp-verdict-navigable { background: #1a7f37; color: #fff; }
+.cp-verdict-navigable_reserve { background: #bf8700; color: #fff; }
+.cp-verdict-non_navigable { background: #b32d2e; color: #fff; }
+.cp-status-attente { background: #fde7d9; color: #8a3a00; }
+.cp-status-annulee { background: #f6dcdc; color: #8a1f1f; }
