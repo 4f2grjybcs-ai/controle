@@ -111,7 +111,7 @@ class CP_Settings {
 			'report_intro'        => array( 'rapport', 'textarea', __( 'Texte d\'introduction (sous le titre)', 'controle-parapente' ), '' ),
 			'note_title'          => array( 'rapport', 'text', __( 'Titre du mot de l\'atelier', 'controle-parapente' ), __( 'Le mot de l\'atelier', 'controle-parapente' ) ),
 			'state_title'         => array( 'rapport', 'text', __( 'Titre du curseur d\'état', 'controle-parapente' ), __( 'État général de l\'aile', 'controle-parapente' ) ),
-			'state_labels'        => array( 'rapport', 'lines', __( 'Positions du curseur d\'état (une par ligne, de la meilleure à la pire)', 'controle-parapente' ), "Neuf\nTrès bon état\nBon état\nÉtat correct\nUsé — à surveiller\nRéforme" ),
+			'state_labels'        => array( 'rapport', 'lines', __( 'Positions du curseur d\'état (une par ligne, de la meilleure à la pire)', 'controle-parapente' ), "Neuf\nTrès bon\nBon\nAcceptable\nLimite\nRéformé" ),
 			'state_help'          => array( 'rapport', 'textarea', __( 'Explication du curseur', 'controle-parapente' ), __( 'Le curseur indique l\'état de l\'aile au jour du contrôle, d\'après les tests réalisés ; il ne constitue ni un pourcentage d\'usure, ni une durée de vie restante.', 'controle-parapente' ) ),
 			'state_unavailable'   => array( 'rapport', 'textarea', __( 'Texte si l\'état général n\'est pas renseigné', 'controle-parapente' ), __( 'État général non évalué lors de ce contrôle.', 'controle-parapente' ) ),
 			'h_sections'          => array( 'rapport', 'heading', __( 'Titres des inspections', 'controle-parapente' ) ),
@@ -159,6 +159,16 @@ class CP_Settings {
 	 * Retire l'ancienne mention d'un label commercial des réglages déjà enregistrés.
 	 */
 	private static function migrate( array $settings ) {
+		// Anciennes positions du curseur d'état par défaut remplacées par les nouveaux termes.
+		$old_states = array( 'Neuf', 'Très bon état', 'Bon état', 'État correct', 'Usé — à surveiller', 'Réforme' );
+		if ( array_map( 'trim', preg_split( '/\r\n|\r|\n/', trim( (string) $settings['state_labels'] ) ) ) === $old_states ) {
+			$settings['state_labels'] = self::defaults()['state_labels'];
+			$stored                   = (array) get_option( self::OPTION, array() );
+			if ( isset( $stored['state_labels'] ) ) {
+				$stored['state_labels'] = $settings['state_labels'];
+				update_option( self::OPTION, $stored );
+			}
+		}
 		// Ancienne tolérance de calage par défaut (15 mm) remplacée par 10 mm (une seule fois).
 		if ( ! get_option( 'cp_trim_tolerance_10' ) ) {
 			update_option( 'cp_trim_tolerance_10', 1, false );
