@@ -57,6 +57,10 @@ class CP_Admin {
 				'porosityReform' => (float) CP_Settings::get( 'porosity_reform' ),
 				'tearReform'     => (float) CP_Settings::get( 'tear_reform' ),
 				'tearGood'       => (float) CP_Settings::get( 'tear_good' ),
+				'lineTypes'      => CP_Settings::line_types(),
+				'lineFactorAB'   => (float) CP_Settings::get( 'line_factor_ab' ),
+				'lineFactorCDE'  => (float) CP_Settings::get( 'line_factor_cde' ),
+				'lineUpperMin'   => (float) CP_Settings::get( 'line_upper_min' ),
 				'inspectionTypes' => array_map(
 					static function ( $t ) {
 						return $t['tests'];
@@ -242,6 +246,15 @@ class CP_Admin {
 		$render_row = static function ( $index, $row ) use ( $key, $columns, $extra ) {
 			echo '<tr>';
 			foreach ( $columns as $field => $col ) {
+				if ( 'select' === $col[1] ) {
+					$current = isset( $row[ $field ] ) ? (string) $row[ $field ] : ( isset( $col[3] ) ? $col[3] : '' );
+					printf( '<td><select name="cp[%1$s][%2$s][%3$s]" data-field="%3$s" class="widefat">', esc_attr( $key ), esc_attr( $index ), esc_attr( $field ) );
+					foreach ( $col[2] as $value => $text ) {
+						printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $current, (string) $value, false ), esc_html( $text ) );
+					}
+					echo '</select></td>';
+					continue;
+				}
 				printf(
 					'<td><input type="%1$s" name="cp[%2$s][%3$s][%4$s]" value="%5$s" data-field="%4$s" class="widefat" %6$s /></td>',
 					esc_attr( $col[1] ),
@@ -327,13 +340,37 @@ class CP_Admin {
 			printf( '<p class="description">%s %s</p>', esc_html__( 'Ancienne saisie :', 'controle-parapente' ), esc_html( $d['fabric_strength'] ) );
 		}
 		echo '<h4>' . esc_html__( 'Résistance des suspentes (test de rupture)', 'controle-parapente' ) . '</h4>';
-		echo '<p class="description">' . esc_html__( 'Pour chaque étage testé : rupture mesurée en daN et seuil minimum (constructeur, sinon PMA).', 'controle-parapente' ) . '</p>';
+		$ptv = CP_Controle::ptv_max( $d );
+		printf(
+			'<p class="description">%s</p>',
+			esc_html(
+				sprintf(
+					/* translators: 1: facteur A/B, 2: facteur C/D/E, 3: minimum suspentes hautes */
+					__( 'Choisissez le type de suspente (valeur à neuf), le groupe, l\'étage et le nombre de suspentes à cet étage (hors stabilo) : le minimum est calculé automatiquement — A/B : PTV × %1$s ÷ n ; C/D/E : PTV × %2$s ÷ n ; suspentes hautes : %3$s kg minimum. En « Manuel », saisissez le minimum du constructeur.', 'controle-parapente' ),
+					CP_Settings::get( 'line_factor_ab' ),
+					CP_Settings::get( 'line_factor_cde' ),
+					CP_Settings::get( 'line_upper_min' )
+				)
+			)
+		);
+		echo '<div class="cp-grid">';
+		self::field( 'ptv_max', __( 'PTV max de l\'aile (kg)', 'controle-parapente' ), $d['ptv_max'], 'number', 'step="any" min="0" placeholder="' . esc_attr( $ptv ? $ptv : '' ) . '"' );
+		echo '</div>';
+		$types = array( '' => '—' );
+		foreach ( CP_Settings::line_types() as $slug => $type ) {
+			$types[ $slug ] = $type['label'] . ( $type['material'] ? ' (' . $type['material'] . ')' : '' );
+		}
 		self::repeatable(
 			'lines',
 			array(
 				'line'     => array( __( 'Suspente', 'controle-parapente' ), 'text' ),
-				'measured' => array( __( 'Rupture mesurée (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
-				'minimum'  => array( __( 'Minimum requis (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
+				'type'     => array( __( 'Type', 'controle-parapente' ), 'select', $types, '' ),
+				'new'      => array( __( 'À neuf (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
+				'group'    => array( __( 'Groupe', 'controle-parapente' ), 'select', CP_Controle::line_groups(), 'ab' ),
+				'level'    => array( __( 'Étage', 'controle-parapente' ), 'select', CP_Controle::line_levels(), 'bas' ),
+				'count'    => array( __( 'Nb à l\'étage', 'controle-parapente' ), 'number', 'step="1" min="1"' ),
+				'measured' => array( __( 'Rupture (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
+				'minimum'  => array( __( 'Minimum (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
 			),
 			$d['lines'],
 			__( 'Évaluation', 'controle-parapente' )

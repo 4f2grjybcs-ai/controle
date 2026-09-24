@@ -12,6 +12,10 @@
 		tearReform: parseFloat( raw.tearReform ) || 0,
 		tearGood: parseFloat( raw.tearGood ) || 0,
 		inspectionTypes: raw.inspectionTypes || {},
+		lineTypes: raw.lineTypes || {},
+		lineFactorAB: parseFloat( raw.lineFactorAB ) || 8,
+		lineFactorCDE: parseFloat( raw.lineFactorCDE ) || 6,
+		lineUpperMin: parseFloat( raw.lineUpperMin ) || 30,
 		validityMonths: parseInt( raw.validityMonths, 10 ) || 0,
 		ajaxUrl: raw.ajaxUrl,
 		searchNonce: raw.searchNonce
@@ -80,12 +84,33 @@
 			setComputed( row, v < cfg.tearGood ? 'À surveiller' : 'Conforme', v < cfg.tearGood ? 'warn' : 'ok' );
 		},
 		lines: function ( row ) {
+			var get = function ( name ) {
+				return row.querySelector( '[data-field="' + name + '"]' );
+			};
+			var group = get( 'group' ) ? get( 'group' ).value : 'manuel';
+			var minInput = get( 'minimum' );
+			// Minimum calculé (type PMA) : PTV × facteur ÷ nombre de suspentes à l'étage, en daN.
+			if ( minInput ) {
+				minInput.readOnly = group !== 'manuel';
+				var n = field( row, 'count' );
+				var ptvEl = document.getElementById( 'cp-ptv_max' );
+				var ptv = ptvEl ? ( num( ptvEl.value ) || num( ptvEl.getAttribute( 'placeholder' ) ) ) : null;
+				if ( group !== 'manuel' && n && ptv ) {
+					var kg = ptv * ( group === 'ab' ? cfg.lineFactorAB : cfg.lineFactorCDE ) / n;
+					if ( get( 'level' ) && get( 'level' ).value === 'haut' ) {
+						kg = Math.max( kg, cfg.lineUpperMin );
+					}
+					minInput.value = String( Math.round( kg * 0.980665 * 10 ) / 10 );
+				}
+			}
 			var m = field( row, 'measured' );
 			var min = field( row, 'minimum' );
+			var nw = field( row, 'new' );
 			if ( m === null || min === null ) {
 				return setComputed( row, '', '' );
 			}
-			setComputed( row, m >= min ? 'Conforme' : 'Non conforme', m >= min ? 'ok' : 'bad' );
+			var pct = nw ? ' · ' + Math.round( m / nw * 100 ) + ' % du neuf' : '';
+			setComputed( row, ( m >= min ? 'Conforme' : 'Sous le minimum' ) + pct, m >= min ? 'ok' : 'bad' );
 		}
 	};
 
@@ -126,6 +151,27 @@
 
 		evaluate( table );
 	} );
+
+	// Type de suspente choisi : valeur à neuf reprise du catalogue.
+	document.addEventListener( 'change', function ( e ) {
+		var el = e.target;
+		if ( el.matches && el.matches( '.cp-repeat[data-key="lines"] [data-field="type"]' ) ) {
+			var t = cfg.lineTypes[ el.value ];
+			var nw = el.closest( 'tr' ).querySelector( '[data-field="new"]' );
+			if ( t && nw ) {
+				nw.value = t.new;
+			}
+		}
+		if ( el.closest && el.closest( '.cp-repeat' ) ) {
+			evaluate( el.closest( '.cp-repeat' ) );
+		}
+	} );
+	var ptvInput = document.getElementById( 'cp-ptv_max' );
+	if ( ptvInput ) {
+		ptvInput.addEventListener( 'input', function () {
+			document.querySelectorAll( '.cp-repeat[data-key="lines"]' ).forEach( evaluate );
+		} );
+	}
 
 	// Seuils modifiés : réévaluer les tableaux.
 	[ 'cp-por_alert', 'cp-por_reform', 'cp-tear_reform' ].forEach( function ( id ) {

@@ -85,6 +85,10 @@ class CP_Settings {
 			'h_tear'              => array( 'normes', 'heading', __( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ) ),
 			'tear_reform'         => array( 'normes', 'number', __( 'Valeur de réforme (g)', 'controle-parapente' ), 600 ),
 			'tear_good'           => array( 'normes', 'number', __( 'Valeur « bonne » (g)', 'controle-parapente' ), 900, __( 'Entre la réforme et cette valeur : à surveiller.', 'controle-parapente' ) ),
+			'h_lines'             => array( 'normes', 'heading', __( 'Résistance des suspentes (calcul du minimum)', 'controle-parapente' ), '', __( 'Minimum = PTV max × facteur ÷ nombre de suspentes à cet étage (hors stabilo), converti en daN. Suspentes hautes : jamais moins que le minimum ci-dessous.', 'controle-parapente' ) ),
+			'line_factor_ab'      => array( 'normes', 'number', __( 'Facteur suspentes A / B', 'controle-parapente' ), 8 ),
+			'line_factor_cde'     => array( 'normes', 'number', __( 'Facteur suspentes C / D / E', 'controle-parapente' ), 6 ),
+			'line_upper_min'      => array( 'normes', 'number', __( 'Minimum suspentes hautes (kg)', 'controle-parapente' ), 30 ),
 			'h_geometry'          => array( 'normes', 'heading', __( 'Géométrie (calage)', 'controle-parapente' ) ),
 			'trim_tolerance'      => array( 'normes', 'number', __( 'Tolérance par défaut (± mm)', 'controle-parapente' ), 10, __( 'Modifiable sur chaque fiche, dans la feuille de calage.', 'controle-parapente' ) ),
 			'trim_load'           => array( 'normes', 'text', __( 'Tension de mesure des suspentes', 'controle-parapente' ), '5 daN', __( 'Affichée sur le rapport (le standard PMA prévoit une mesure sous 5 daN).', 'controle-parapente' ) ),
@@ -126,6 +130,7 @@ class CP_Settings {
 			'porosity_points'     => array( 'listes', 'lines', __( 'Points de mesure de porosité proposés', 'controle-parapente' ), "Extrados — centre gauche (20-30 cm du BA)\nExtrados — centre droit (20-30 cm du BA)\nExtrados — 1/4 envergure gauche\nExtrados — 1/4 envergure droite\nExtrados — 1/2 envergure gauche\nExtrados — 1/2 envergure droite\nIntrados — centre" ),
 			'tear_points'         => array( 'listes', 'lines', __( 'Points de mesure de déchirure proposés', 'controle-parapente' ), "Extrados — bord d'attaque centre\nIntrados — centre\nCloison — centre" ),
 			'line_points'         => array( 'listes', 'lines', __( 'Suspentes testées à la rupture proposées', 'controle-parapente' ), "A — étage bas (centrale)\nA — étage médian\nA — étage haut\nB — étage bas (centrale)\nC — étage bas (centrale)\nFrein — étage bas" ),
+			'line_types'          => array( 'listes', 'lines', __( 'Types de suspentes (catalogue)', 'controle-parapente' ), "Edelrid 8000U-050 | Aramide | 50\nEdelrid 8000U-070 | Aramide | 70\nEdelrid 8000U-090 | Aramide | 90\nEdelrid 8000U-130 | Aramide | 130\nEdelrid 8000U-190 | Aramide | 190\nEdelrid 8000U-230 | Aramide | 230\nEdelrid 8000U-280 | Aramide | 280\nLiros PPSL-120 | Dyneema | 120\nLiros PPSL-160 | Dyneema | 160\nLiros PPSL-200 | Dyneema | 200\nLiros PPSL-275 | Dyneema | 275\nLiros DC-060 | Dyneema | 60\nLiros DC-100 | Dyneema | 100", __( 'Une par ligne : « Nom | matière | résistance à neuf en daN ». Vérifiez les valeurs dans les fiches techniques du fabricant de suspentes ou le manuel de l\'aile.', 'controle-parapente' ) ),
 			'services'            => array( 'listes', 'lines', __( 'Prestations proposées', 'controle-parapente' ), "Révision complète\nRecalage des suspentes\nRéparation\nRepliage parachute de secours" ),
 
 			/* ---------------- E-mails ---------------- */
@@ -264,6 +269,27 @@ class CP_Settings {
 			$search[] = '{' . $name . '}';
 		}
 		return str_replace( $search, array_values( $vars ), (string) self::get( $key ) );
+	}
+
+	/**
+	 * Catalogue des suspentes : [ 'cle' => [ 'label' => …, 'material' => …, 'new' => daN ] ].
+	 */
+	public static function line_types() {
+		$out = array();
+		foreach ( self::lines( 'line_types' ) as $line ) {
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			$slug  = sanitize_title( $parts[0] );
+			if ( '' === $slug ) {
+				continue;
+			}
+			$new          = isset( $parts[2] ) ? (float) str_replace( ',', '.', $parts[2] ) : 0;
+			$out[ $slug ] = array(
+				'label'    => $parts[0],
+				'material' => isset( $parts[1] ) ? $parts[1] : '',
+				'new'      => $new > 0 ? $new : '',
+			);
+		}
+		return $out;
 	}
 
 	/**

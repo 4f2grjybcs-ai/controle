@@ -479,3 +479,14 @@
 	cursor: default;
 }
 .cp-trim-slot:not( .is-empty ):hover { opacity: 0.6; }
+
+/* Tableau de résistance des suspentes : colonnes lisibles */
+.cp-repeat-wrap { overflow-x: auto; }
+.cp-repeat[data-key="lines"] { min-width: 1060px; }
+.cp-repeat[data-key="lines"] [data-field="line"] { min-width: 170px; }
+.cp-repeat[data-key="lines"] [data-field="type"] { min-width: 190px; }
+.cp-repeat[data-key="lines"] [data-field="group"] { min-width: 100px; }
+.cp-repeat[data-key="lines"] [data-field="level"] { min-width: 92px; }
+.cp-repeat[data-key="lines"] input[type="number"] { min-width: 76px; }
+.cp-repeat[data-key="lines"] [data-field="minimum"][readonly] { font-weight: 700; color: #3d2f28; }
+.cp-repeat .cp-computed { white-space: nowrap; }

@@ -235,7 +235,75 @@ class CP_Controle {
 	}
 
 	public static function default_line_rows() {
-		return self::rows_from( 'line_points', 'line', array( 'measured' => '', 'minimum' => '' ) );
+		$rows = array();
+		foreach ( CP_Settings::lines( 'line_points' ) as $label ) {
+			// Groupe et étage devinés d'après le libellé (« A — étage bas », « C — étage haut »…).
+			$l      = strtolower( remove_accents( $label ) );
+			$rows[] = array(
+				'line'     => $label,
+				'type'     => '',
+				'new'      => '',
+				'group'    => preg_match( '/^\s*(a|b)\b/', $l ) ? 'ab' : ( preg_match( '/^\s*(c|d|e)\b/', $l ) ? 'cde' : 'manuel' ),
+				'level'    => false !== strpos( $l, 'haut' ) ? 'haut' : ( false !== strpos( $l, 'median' ) ? 'median' : 'bas' ),
+				'count'    => '',
+				'measured' => '',
+				'minimum'  => '',
+			);
+		}
+		return $rows;
+	}
+
+	public static function line_groups() {
+		return array(
+			'ab'     => __( 'A / B', 'controle-parapente' ),
+			'cde'    => __( 'C / D / E', 'controle-parapente' ),
+			'manuel' => __( 'Manuel', 'controle-parapente' ),
+		);
+	}
+
+	public static function line_levels() {
+		return array(
+			'bas'    => __( 'Bas', 'controle-parapente' ),
+			'median' => __( 'Médian', 'controle-parapente' ),
+			'haut'   => __( 'Haut', 'controle-parapente' ),
+		);
+	}
+
+	/**
+	 * PTV max (kg) : valeur saisie, sinon plus grand nombre de la plage de poids (« 75-95 » → 95).
+	 */
+	public static function ptv_max( array $d ) {
+		if ( is_numeric( $d['ptv_max'] ) && (float) $d['ptv_max'] > 0 ) {
+			return (float) $d['ptv_max'];
+		}
+		preg_match_all( '/\d+(?:[.,]\d+)?/', (string) $d['weight_range'], $m );
+		$values = array_map(
+			static function ( $v ) {
+				return (float) str_replace( ',', '.', $v );
+			},
+			$m[0]
+		);
+		return $values ? max( $values ) : 0.0;
+	}
+
+	/**
+	 * Résistance minimale d'une suspente (daN), calcul type PMA :
+	 * A/B : PTV × facteur A/B ÷ n ; C/D/E : PTV × facteur C/D/E ÷ n ; suspentes hautes : au moins le minimum réglé.
+	 *
+	 * @return float|null Null si le calcul n'est pas possible (groupe manuel, n ou PTV manquant).
+	 */
+	public static function line_minimum( array $row, $ptv ) {
+		$group = isset( $row['group'] ) ? $row['group'] : 'manuel';
+		$n     = isset( $row['count'] ) ? (float) $row['count'] : 0;
+		if ( 'manuel' === $group || $n <= 0 || $ptv <= 0 ) {
+			return null;
+		}
+		$factor = (float) CP_Settings::get( 'ab' === $group ? 'line_factor_ab' : 'line_factor_cde' );
+		$kg     = $ptv * $factor / $n;
+		if ( isset( $row['level'] ) && 'haut' === $row['level'] ) {
+			$kg = max( $kg, (float) CP_Settings::get( 'line_upper_min' ) );
+		}
+		return round( $kg * 0.980665, 1 );
 	}
 
 	/**
@@ -279,6 +347,7 @@ class CP_Controle {
 			'fabric_strength'   => '',
 			'fabric_result'     => '',
 			'lines'             => self::default_line_rows(),
+			'ptv_max'           => '',
 			'trim'              => CP_Trim::defaults(),
 			'trim_adjusted'     => '',
 			'visual'            => array(),
@@ -418,7 +487,24 @@ class CP_Controle {
 
 		$d['porosity'] = self::sanitize_rows( $raw, 'porosity', array( 'zone' => 'text', 'value' => 'number' ) );
 		$d['tear']     = self::sanitize_rows( $raw, 'tear', array( 'zone' => 'text', 'value' => 'number' ) );
-		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'measured' => 'number', 'minimum' => 'number' ) );
+		$d['ptv_max']  = isset( $raw['ptv_max'] ) && is_numeric( str_replace( ',', '.', $raw['ptv_max'] ) ) ? (string) ( 0 + str_replace( ',', '.', $raw['ptv_max'] ) ) : '';
+		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'type' => 'text', 'new' => 'number', 'group' => 'text', 'level' => 'text', 'count' => 'number', 'measured' => 'number', 'minimum' => 'number' ) );
+		$types         = CP_Settings::line_types();
+		$ptv           = self::ptv_max( array_merge( $d, array( 'weight_range' => isset( $d['weight_range'] ) ? $d['weight_range'] : '' ) ) );
+		foreach ( $d['lines'] as $i => $row ) {
+			$row['type']  = isset( $types[ $row['type'] ] ) ? $row['type'] : '';
+			$row['group'] = array_key_exists( $row['group'], self::line_groups() ) ? $row['group'] : 'manuel';
+			$row['level'] = array_key_exists( $row['level'], self::line_levels() ) ? $row['level'] : 'bas';
+			if ( $row['type'] && '' === $row['new'] ) {
+				$row['new'] = (string) $types[ $row['type'] ]['new'];
+			}
+			// Minimum recalculé côté serveur (même règle que dans la fiche).
+			$min = self::line_minimum( $row, $ptv );
+			if ( null !== $min ) {
+				$row['minimum'] = (string) $min;
+			}
+			$d['lines'][ $i ] = $row;
+		}
 		$d['trim']     = CP_Trim::sanitize( isset( $raw['trim'] ) ? $raw['trim'] : array() );
 
 		$d['visual'] = array();

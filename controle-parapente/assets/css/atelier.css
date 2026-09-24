@@ -460,3 +460,8 @@ body[data-tab="mesures"] .cp-fiche-layout,
 body[data-tab="calage"] .cp-fiche-layout { grid-template-columns: 1fr; }
 body[data-tab="mesures"] .cp-fiche-side,
 body[data-tab="calage"] .cp-fiche-side { position: static; order: 2; max-width: 520px; }
+
+/* Évaluations colorées dans les tableaux (porosité, déchirure, suspentes) */
+.cp-atelier table.widefat td.lvl-ok { color: var( --cp-ok ); font-weight: 700; }
+.cp-atelier table.widefat td.lvl-warn { color: var( --cp-warn ); font-weight: 700; }
+.cp-atelier table.widefat td.lvl-bad { color: var( --cp-bad ); font-weight: 700; background: var( --cp-bad-soft ); }

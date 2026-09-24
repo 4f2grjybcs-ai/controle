@@ -400,20 +400,54 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 			<?php if ( ! $is_done( 'L' ) ) : ?>
 				<?php $not_done( 'L' ); ?>
 			<?php elseif ( $d['lines'] ) : ?>
+				<?php
+				$line_types = CP_Settings::line_types();
+				$levels     = CP_Controle::line_levels();
+				$ptv        = CP_Controle::ptv_max( $d );
+				?>
 				<table class="cp-table">
-					<thead><tr><th><?php esc_html_e( 'Suspente / étage', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Rupture (daN)', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Seuil minimum (daN)', 'controle-parapente' ); ?></th><th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th></tr></thead>
+					<thead><tr>
+						<th><?php esc_html_e( 'Suspente / étage', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Type', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'À neuf (daN)', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'Rupture (daN)', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'Minimum (daN)', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( '% du neuf', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th>
+					</tr></thead>
 					<tbody>
 					<?php foreach ( $d['lines'] as $row ) : ?>
-						<?php $level = CP_Controle::line_level( $row['measured'], $row['minimum'] ); ?>
+						<?php
+						$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
+						$new   = isset( $row['new'] ) && is_numeric( $row['new'] ) && (float) $row['new'] > 0 ? (float) $row['new'] : null;
+						$type  = isset( $row['type'], $line_types[ $row['type'] ] ) ? $line_types[ $row['type'] ]['label'] : '';
+						?>
 						<tr>
-							<td><?php echo esc_html( $row['line'] ); ?></td>
+							<td><?php echo esc_html( $row['line'] . ( isset( $row['level'], $levels[ $row['level'] ] ) && ! preg_match( '/étage/iu', $row['line'] ) ? ' — ' . mb_strtolower( $levels[ $row['level'] ] ) : '' ) ); ?></td>
+							<td class="cp-nowrap"><?php echo esc_html( $type ? $type : '—' ); ?></td>
+							<td class="num"><?php echo esc_html( null === $new ? '—' : $fmt( $new ) ); ?></td>
 							<td class="num"><?php echo esc_html( $fmt( $row['measured'] ) ); ?></td>
 							<td class="num"><?php echo esc_html( $fmt( $row['minimum'] ) ); ?></td>
-							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( $level_text( $level, __( 'Sous le seuil', 'controle-parapente' ) ) ); ?></td>
+							<td class="num"><?php echo esc_html( null !== $new && is_numeric( $row['measured'] ) ? round( (float) $row['measured'] / $new * 100 ) . ' %' : '—' ); ?></td>
+							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( $level_text( $level, __( 'Sous le minimum', 'controle-parapente' ) ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				<p class="cp-small">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: PTV, 2: facteur A/B, 3: facteur C/D/E, 4: minimum suspentes hautes */
+							__( 'Minimum calculé selon la méthode PMA : PTV max %1$s kg × %2$s ÷ nombre de suspentes A/B à l\'étage ; × %3$s ÷ nombre de suspentes C/D/E ; suspentes hautes : %4$s kg minimum (valeurs converties en daN), sauf minimum indiqué par le constructeur.', 'controle-parapente' ),
+							$ptv ? $fmt( $ptv ) : '—',
+							CP_Settings::get( 'line_factor_ab' ),
+							CP_Settings::get( 'line_factor_cde' ),
+							CP_Settings::get( 'line_upper_min' )
+						)
+					);
+					?>
+				</p>
 			<?php else : ?>
 				<p class="cp-small">—</p>
 			<?php endif; ?>
