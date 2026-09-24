@@ -490,3 +490,4 @@
 .cp-repeat[data-key="lines"] input[type="number"] { min-width: 76px; }
 .cp-repeat[data-key="lines"] [data-field="minimum"][readonly] { font-weight: 700; color: #3d2f28; }
 .cp-repeat .cp-computed { white-space: nowrap; }
+.cp-offset-warn { margin: 6px 0; padding: 6px 12px; border-radius: 8px; background: #fbe9e3; color: #8f2d17; font-weight: 700; }

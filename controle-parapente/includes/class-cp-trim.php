@@ -15,8 +15,8 @@
  * - initial_date, final_date, initial_locked
  *
  * Comme dans la feuille de calage de l'atelier :
- *   usine corrigée = cote usine + élévateur + offset
- *   résultat       = mesure voile − usine corrigée
+ *   usine corrigée = cote usine + élévateur
+ *   résultat (Δ)   = mesure voile + offset − usine corrigée   (PMA 5.5)
  * Le résultat retenu pour le rapport est celui de la mesure finale (sinon de la 1ère).
  *
  * @package ControleParapente
@@ -311,13 +311,13 @@ class CP_Trim {
 	}
 
 	/**
-	 * Cote usine corrigée (usine + élévateur + offset), ou null.
+	 * Cote usine corrigée (usine + élévateur), ou null. L'offset s'ajoute aux mesures (PMA 5.5).
 	 */
 	public static function corrected_factory( array $trim, $id ) {
 		if ( ! isset( $trim['factory'][ $id ] ) || '' === $trim['factory'][ $id ] ) {
 			return null;
 		}
-		return (float) $trim['factory'][ $id ] + (float) $trim['riser_length'] + (float) $trim['offset'];
+		return (float) $trim['factory'][ $id ] + (float) $trim['riser_length'];
 	}
 
 	/**
@@ -329,6 +329,7 @@ class CP_Trim {
 	public static function analyze( array $trim ) {
 		$trim      = self::normalize( $trim );
 		$tolerance = self::tolerance( $trim );
+		$offset    = (float) $trim['offset'];
 		$sides     = array_keys( self::side_labels( $trim['sides'] ) );
 		$lines     = array();
 		$groups    = array();
@@ -358,12 +359,12 @@ class CP_Trim {
 
 				foreach ( array( 'initial', 'final' ) as $set ) {
 					$raw = isset( $trim[ $set ][ $id ][ $side ] ) && '' !== $trim[ $set ][ $id ][ $side ] ? (float) $trim[ $set ][ $id ][ $side ] : null;
-					$dev = ( null === $raw || null === $line['corrected'] ) ? null : $raw - $line['corrected'];
+					$dev = ( null === $raw || null === $line['corrected'] ) ? null : $raw + $offset - $line['corrected'];
 
 					$line[ $set ][ $side ] = array(
 						'raw'       => $raw,
 						'deviation' => $dev,
-						'level'     => self::level( $dev, $tolerance ),
+						'level'     => self::level( $dev, $tolerance, $line['row'] ),
 					);
 					if ( null !== $raw ) {
 						$has_data = true;
@@ -402,7 +403,14 @@ class CP_Trim {
 			$mf = $groups[ $key ]['final']['mean'];
 
 			$groups[ $key ]['adjustment'] = ( null === $mi || null === $mf ) ? null : $mf - $mi;
-			$groups[ $key ]['level']      = null === $groups[ $key ]['result']['max'] ? '' : self::level( $groups[ $key ]['result']['max'], $tolerance );
+			// Un groupe est conforme si toutes ses suspentes le sont (freins : plage 0 / +50 mm).
+			$levels                       = array_map(
+				static function ( $v ) use ( $tolerance, $g ) {
+					return self::level( $v, $tolerance, $g['row'] );
+				},
+				$g['result']
+			);
+			$groups[ $key ]['level']      = $levels ? ( in_array( 'bad', $levels, true ) ? 'bad' : 'ok' ) : '';
 		}
 
 		return array(
@@ -423,11 +431,36 @@ class CP_Trim {
 		return $max;
 	}
 
-	public static function level( $deviation, $tolerance ) {
+	/**
+	 * Écart dans la tolérance ? Suspentes : ± tolérance ; freins : entre le minimum et le maximum réglés (PMA : 0 à +50 mm).
+	 */
+	public static function level( $deviation, $tolerance, $row = '' ) {
 		if ( null === $deviation ) {
 			return '';
 		}
+		if ( 'F' === $row ) {
+			return $deviation >= (float) CP_Settings::get( 'brake_min' ) && $deviation <= (float) CP_Settings::get( 'brake_max' ) ? 'ok' : 'bad';
+		}
 		return abs( $deviation ) <= $tolerance ? 'ok' : 'bad';
+	}
+
+	/**
+	 * Offset autorisé (PMA : ± 1,5 % de la plus grande longueur totale du manuel).
+	 *
+	 * @return array [ 'limit' => mm|null, 'ok' => bool ]
+	 */
+	public static function offset_status( array $trim ) {
+		$max = 0;
+		foreach ( (array) $trim['factory'] as $id => $value ) {
+			if ( is_numeric( $value ) ) {
+				$max = max( $max, (float) $value + (float) $trim['riser_length'] );
+			}
+		}
+		if ( ! $max ) {
+			return array( 'limit' => null, 'ok' => true );
+		}
+		$limit = round( $max * (float) CP_Settings::get( 'offset_max_pct' ) / 100, 1 );
+		return array( 'limit' => $limit, 'ok' => abs( (float) $trim['offset'] ) <= $limit );
 	}
 
 	/**
@@ -489,7 +522,7 @@ class CP_Trim {
 			<?php
 		};
 		?>
-		<div class="cp-trim" data-tolerance="<?php echo esc_attr( self::tolerance( $trim ) ); ?>" data-step="<?php echo esc_attr( $has_fact ? 'feuille' : 'structure' ); ?>"
+		<div class="cp-trim" data-tolerance="<?php echo esc_attr( self::tolerance( $trim ) ); ?>" data-brake-min="<?php echo esc_attr( CP_Settings::get( 'brake_min' ) ); ?>" data-brake-max="<?php echo esc_attr( CP_Settings::get( 'brake_max' ) ); ?>" data-offset-pct="<?php echo esc_attr( CP_Settings::get( 'offset_max_pct' ) ); ?>" data-step="<?php echo esc_attr( $has_fact ? 'feuille' : 'structure' ); ?>"
 			data-preview-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>" data-preview-nonce="<?php echo esc_attr( wp_create_nonce( 'cp_wing_preview' ) ); ?>">
 
 			<nav class="cp-trim-steps" role="tablist">
@@ -517,7 +550,7 @@ class CP_Trim {
 			<div class="cp-trim-step" data-step-panel="usine">
 				<div class="cp-sheet-toolbar">
 					<?php $stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) ); ?>
-					<p class="cp-sheet-formula"><?php esc_html_e( 'Cotes du manuel constructeur (mm), une seule fois pour toute la fiche. Usine corrigée = usine + élévateur + offset (l\'offset se règle dans la feuille de calage). Flèches / Entrée pour se déplacer ; vous pouvez coller une colonne depuis Excel.', 'controle-parapente' ); ?></p>
+					<p class="cp-sheet-formula"><?php esc_html_e( 'Longueurs totales du manuel constructeur (mm), une seule fois pour toute la fiche. Usine corrigée = usine + élévateur. Flèches / Entrée pour se déplacer ; vous pouvez coller une colonne depuis Excel.', 'controle-parapente' ); ?></p>
 				</div>
 				<div class="cp-sheet-wrap"><div class="cp-sheet-grid cp-sheet-factory"></div></div>
 			</div>
@@ -537,7 +570,7 @@ class CP_Trim {
 					</div>
 					<?php
 					$stepper( 'cp-trim-tol', 'cp[trim][tolerance]', self::length( self::tolerance( $trim ) ), __( 'Tolérance ±', 'controle-parapente' ), __( 'Au-delà, la case passe au rouge.', 'controle-parapente' ) );
-					$stepper( 'cp-trim-offset', 'cp[trim][offset]', $trim['offset'], __( 'Offset', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) );
+					$stepper( 'cp-trim-offset', 'cp[trim][offset]', $trim['offset'], __( 'Offset', 'controle-parapente' ), __( 'Ajouté à toutes les mesures (PMA : ± 1,5 % max).', 'controle-parapente' ) );
 					?>
 					<div class="cp-sheet-control cp-sheet-dates">
 						<label><?php esc_html_e( 'Dates', 'controle-parapente' ); ?></label>
@@ -546,7 +579,8 @@ class CP_Trim {
 						<label class="cp-check"><input type="checkbox" id="cp-trim-locked" name="cp[trim][initial_locked]" value="1" <?php checked( $trim['initial_locked'], '1' ); ?> /> <?php esc_html_e( '1ère mesure figée', 'controle-parapente' ); ?></label>
 					</div>
 				</div>
-				<p class="cp-sheet-formula"><?php esc_html_e( 'Résultat = voile − usine corrigée. Vert : dans la tolérance · rouge : hors tolérance. Flèches / Entrée pour se déplacer ; collez une colonne depuis Excel ou le laser.', 'controle-parapente' ); ?></p>
+				<p class="cp-offset-warn" hidden></p>
+				<p class="cp-sheet-formula"><?php esc_html_e( 'Résultat Δ = voile + offset − usine corrigée (PMA 5.5, mesures sous 5 daN). Vert : dans la tolérance (freins : 0 à +50 mm) · rouge : hors tolérance. Flèches / Entrée pour se déplacer ; collez une colonne depuis Excel ou le laser.', 'controle-parapente' ); ?></p>
 				<div class="cp-sheet-wrap"><div class="cp-sheet-grid cp-sheet"></div></div>
 				<p class="cp-sheet-actions">
 					<button type="button" class="button cp-trim-copy"><?php esc_html_e( 'Copier la 1ère mesure dans la 2e (cases vides)', 'controle-parapente' ); ?></button>
@@ -631,7 +665,15 @@ class CP_Trim {
 			<h2><?php echo esc_html( null === $title ? __( 'Calage', 'controle-parapente' ) : $title ); ?></h2>
 			<p class="cp-small">
 				<?php
-				$info = array( sprintf( __( 'Tolérance : ± %s mm', 'controle-parapente' ), self::length( self::tolerance( $trim ) ) ) );
+				$info = array(
+					sprintf(
+						/* translators: 1: tolérance, 2: min freins, 3: max freins */
+						__( 'Tolérance : ± %1$s mm, freins de %2$s à +%3$s mm', 'controle-parapente' ),
+						self::length( self::tolerance( $trim ) ),
+						self::length( (float) CP_Settings::get( 'brake_min' ) ),
+						self::length( (float) CP_Settings::get( 'brake_max' ) )
+					),
+				);
 				if ( CP_Settings::get( 'trim_load' ) ) {
 					$info[] = sprintf( __( 'longueurs mesurées sous %s', 'controle-parapente' ), CP_Settings::get( 'trim_load' ) );
 				}
@@ -639,7 +681,8 @@ class CP_Trim {
 					$info[] = sprintf( __( 'élévateur : %s mm', 'controle-parapente' ), self::length( (float) $trim['riser_length'] ) );
 				}
 				if ( $detailed && '' !== $trim['offset'] ) {
-					$info[] = sprintf( __( 'offset : %s mm', 'controle-parapente' ), self::signed( (float) $trim['offset'] ) );
+					$os     = self::offset_status( $trim );
+					$info[] = sprintf( __( 'offset : %s mm', 'controle-parapente' ), self::signed( (float) $trim['offset'] ) ) . ( null !== $os['limit'] ? sprintf( __( ' (limite ± %s mm%s)', 'controle-parapente' ), self::length( $os['limit'] ), $os['ok'] ? '' : __( ' — dépassée', 'controle-parapente' ) ) : '' );
 				}
 				if ( $trim['initial_date'] ) {
 					$info[] = sprintf( __( '1ère mesure le %s', 'controle-parapente' ), CP_Controle::format_date( $trim['initial_date'] ) );
@@ -670,8 +713,10 @@ class CP_Trim {
 					echo esc_html(
 						sprintf(
 							/* translators: %s: tolérance */
-							__( 'Aile vue de dessus, bord d\'attaque en haut. Chaque étiquette donne l\'écart moyen du groupe de suspentes par rapport aux cotes du constructeur (mm). Vert : dans la tolérance de ± %s mm ; rouge : hors tolérance.', 'controle-parapente' ),
-							self::length( self::tolerance( $trim ) )
+							__( 'Aile vue de dessus, bord d\'attaque en haut. Chaque étiquette donne l\'écart moyen du groupe de suspentes par rapport aux longueurs du constructeur (mm). Vert : dans la tolérance de ± %1$s mm (freins : %2$s à +%3$s mm) ; rouge : hors tolérance.', 'controle-parapente' ),
+							self::length( self::tolerance( $trim ) ),
+							self::length( (float) CP_Settings::get( 'brake_min' ) ),
+							self::length( (float) CP_Settings::get( 'brake_max' ) )
 						)
 					);
 					?>
@@ -932,7 +977,7 @@ class CP_Trim {
 					$value  = $g[ $set ]['mean'];
 					$before = 'result' === $set && $analysis['has_final'] ? $g['initial']['mean'] : null;
 					$show_b = null !== $before && abs( $before - $value ) >= 1;
-					$ok     = abs( $value ) <= $tol;
+					$ok     = 'ok' === self::level( $value, $tol, $row );
 					list( $x, $y ) = $point( $dir * $u_mid, $row_pos[ $row ] );
 					$bw     = 48;
 					$bh     = $show_b ? 30 : 22;

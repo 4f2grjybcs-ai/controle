@@ -209,13 +209,28 @@ class CP_Controle {
 
 	public static function visual_states() {
 		return array(
-			''          => '—',
-			'ok'        => __( 'Bon état', 'controle-parapente' ),
-			'surveille' => __( 'À surveiller', 'controle-parapente' ),
-			'repare'    => __( 'Réparé / remplacé', 'controle-parapente' ),
-			'nok'       => __( 'Non conforme', 'controle-parapente' ),
-			'na'        => __( 'Non applicable', 'controle-parapente' ),
+			''           => '—',
+			'neuf'       => __( 'Neuf', 'controle-parapente' ),
+			'tres_bon'   => __( 'Très bon', 'controle-parapente' ),
+			'bon'        => __( 'Bon', 'controle-parapente' ),
+			'acceptable' => __( 'Acceptable', 'controle-parapente' ),
+			'limite'     => __( 'Limite', 'controle-parapente' ),
+			'reforme'    => __( 'Réformé', 'controle-parapente' ),
+			'repare'     => __( 'Réparé / remplacé', 'controle-parapente' ),
+			'na'         => __( 'Non applicable', 'controle-parapente' ),
 		);
+	}
+
+	/**
+	 * Anciens états du contrôle visuel → nouveaux termes.
+	 */
+	public static function visual_state_map( $state ) {
+		$map = array(
+			'ok'        => 'bon',
+			'surveille' => 'acceptable',
+			'nok'       => 'reforme',
+		);
+		return isset( $map[ $state ] ) ? $map[ $state ] : $state;
 	}
 
 	private static function rows_from( $key, $field, array $empty ) {
@@ -237,15 +252,15 @@ class CP_Controle {
 	public static function default_line_rows() {
 		$rows = array();
 		foreach ( CP_Settings::lines( 'line_points' ) as $label ) {
-			// Groupe et étage devinés d'après le libellé (« A — étage bas », « C — étage haut »…).
 			$l      = strtolower( remove_accents( $label ) );
+			$level  = preg_match( '/niveau\s*([1-4])/', $l, $m ) ? 'L' . $m[1] : ( false !== strpos( $l, 'haut' ) ? 'L3' : ( false !== strpos( $l, 'median' ) ? 'L2' : 'L1' ) );
 			$rows[] = array(
 				'line'     => $label,
+				'level'    => $level,
 				'type'     => '',
+				'material' => 'aramide',
 				'new'      => '',
-				'group'    => preg_match( '/^\s*(a|b)\b/', $l ) ? 'ab' : ( preg_match( '/^\s*(c|d|e)\b/', $l ) ? 'cde' : 'manuel' ),
-				'level'    => false !== strpos( $l, 'haut' ) ? 'haut' : ( false !== strpos( $l, 'median' ) ? 'median' : 'bas' ),
-				'count'    => '',
+				'source'   => 'fournisseur',
 				'measured' => '',
 				'minimum'  => '',
 			);
@@ -253,57 +268,55 @@ class CP_Controle {
 		return $rows;
 	}
 
-	public static function line_groups() {
-		return array(
-			'ab'     => __( 'A / B', 'controle-parapente' ),
-			'cde'    => __( 'C / D / E', 'controle-parapente' ),
-			'manuel' => __( 'Manuel', 'controle-parapente' ),
-		);
-	}
-
 	public static function line_levels() {
 		return array(
-			'bas'    => __( 'Bas', 'controle-parapente' ),
-			'median' => __( 'Médian', 'controle-parapente' ),
-			'haut'   => __( 'Haut', 'controle-parapente' ),
+			'L1' => __( 'Niveau 1 (basses)', 'controle-parapente' ),
+			'L2' => __( 'Niveau 2', 'controle-parapente' ),
+			'L3' => __( 'Niveau 3', 'controle-parapente' ),
+			'L4' => __( 'Niveau 4', 'controle-parapente' ),
+		);
+	}
+
+	public static function line_materials() {
+		return array(
+			'aramide' => __( 'Aramide / Technora / Vectran', 'controle-parapente' ),
+			'dyneema' => __( 'Dyneema', 'controle-parapente' ),
 		);
 	}
 
 	/**
-	 * PTV max (kg) : valeur saisie, sinon plus grand nombre de la plage de poids (« 75-95 » → 95).
+	 * Source de la valeur à neuf (PMA, tableau 4) ; « minimum constructeur » = minimum saisi à la main.
 	 */
-	public static function ptv_max( array $d ) {
-		if ( is_numeric( $d['ptv_max'] ) && (float) $d['ptv_max'] > 0 ) {
-			return (float) $d['ptv_max'];
-		}
-		preg_match_all( '/\d+(?:[.,]\d+)?/', (string) $d['weight_range'], $m );
-		$values = array_map(
-			static function ( $v ) {
-				return (float) str_replace( ',', '.', $v );
-			},
-			$m[0]
+	public static function line_sources() {
+		return array(
+			'constructeur' => __( 'Constructeur de l\'aile (× 1,00)', 'controle-parapente' ),
+			'fournisseur'  => __( 'Fournisseur de suspentes (× 1,05)', 'controle-parapente' ),
+			'minimum'      => __( 'Minimum donné par le constructeur', 'controle-parapente' ),
 		);
-		return $values ? max( $values ) : 0.0;
 	}
 
 	/**
-	 * Résistance minimale d'une suspente (daN), calcul type PMA :
-	 * A/B : PTV × facteur A/B ÷ n ; C/D/E : PTV × facteur C/D/E ÷ n ; suspentes hautes : au moins le minimum réglé.
+	 * Matière d'un type de suspente du catalogue (Dyneema, sinon aramide).
+	 */
+	public static function material_of( $label ) {
+		return false !== stripos( remove_accents( (string) $label ), 'dyneema' ) ? 'dyneema' : 'aramide';
+	}
+
+	/**
+	 * Résistance minimale d'une suspente (daN), PMA 5.4 :
+	 * minimum = valeur à neuf × coefficient de source × coefficient de matière.
 	 *
-	 * @return float|null Null si le calcul n'est pas possible (groupe manuel, n ou PTV manquant).
+	 * @return float|null Null si le calcul n'est pas possible (minimum constructeur, valeur à neuf manquante).
 	 */
-	public static function line_minimum( array $row, $ptv ) {
-		$group = isset( $row['group'] ) ? $row['group'] : 'manuel';
-		$n     = isset( $row['count'] ) ? (float) $row['count'] : 0;
-		if ( 'manuel' === $group || $n <= 0 || $ptv <= 0 ) {
+	public static function line_minimum( array $row ) {
+		$source = isset( $row['source'] ) ? $row['source'] : 'fournisseur';
+		$new    = isset( $row['new'] ) && is_numeric( $row['new'] ) ? (float) $row['new'] : 0;
+		if ( 'minimum' === $source || $new <= 0 ) {
 			return null;
 		}
-		$factor = (float) CP_Settings::get( 'ab' === $group ? 'line_factor_ab' : 'line_factor_cde' );
-		$kg     = $ptv * $factor / $n;
-		if ( isset( $row['level'] ) && 'haut' === $row['level'] ) {
-			$kg = max( $kg, (float) CP_Settings::get( 'line_upper_min' ) );
-		}
-		return round( $kg * 0.980665, 1 );
+		$source_coeff = 'constructeur' === $source ? 1.0 : (float) CP_Settings::get( 'line_source_supplier' );
+		$line_coeff   = (float) CP_Settings::get( isset( $row['material'] ) && 'dyneema' === $row['material'] ? 'line_coeff_dyneema' : 'line_coeff_aramid' );
+		return round( $new * $source_coeff * $line_coeff, 1 );
 	}
 
 	/**
@@ -347,7 +360,11 @@ class CP_Controle {
 			'fabric_strength'   => '',
 			'fabric_result'     => '',
 			'lines'             => self::default_line_rows(),
-			'ptv_max'           => '',
+			'conformity_date'   => '',
+			'safety_notice'     => '',
+			'temperature'       => '',
+			'humidity'          => '',
+			'next_hours'        => '',
 			'trim'              => CP_Trim::defaults(),
 			'trim_adjusted'     => '',
 			'visual'            => array(),
@@ -371,6 +388,26 @@ class CP_Controle {
 		$data = get_post_meta( $post_id, self::META_DATA, true );
 		$data = wp_parse_args( is_array( $data ) ? $data : array(), self::defaults() );
 		$data['trim'] = CP_Trim::normalize( $data['trim'] );
+		// Anciens états du contrôle visuel.
+		foreach ( (array) $data['visual'] as $k => $v ) {
+			if ( isset( $v['state'] ) ) {
+				$data['visual'][ $k ]['state'] = self::visual_state_map( $v['state'] );
+			}
+		}
+		// Déchirure autrefois saisie en grammes : conversion en daN (PMA).
+		foreach ( (array) $data['tear'] as $k => $row ) {
+			if ( isset( $row['value'] ) && is_numeric( $row['value'] ) && (float) $row['value'] > 20 ) {
+				$data['tear'][ $k ]['value'] = (string) round( (float) $row['value'] / 1000, 2 );
+			}
+		}
+		// Anciennes lignes de résistance (groupe / étage) : niveau et source par défaut.
+		foreach ( (array) $data['lines'] as $k => $row ) {
+			$levels = array( 'bas' => 'L1', 'median' => 'L2', 'haut' => 'L3' );
+			if ( isset( $row['level'] ) && isset( $levels[ $row['level'] ] ) ) {
+				$data['lines'][ $k ]['level'] = $levels[ $row['level'] ];
+			}
+			$data['lines'][ $k ] += array( 'level' => 'L1', 'type' => '', 'material' => isset( $row['type'] ) ? self::material_of( $row['type'] ) : 'aramide', 'new' => '', 'source' => 'fournisseur' );
+		}
 		// Anciennes clés de type d'inspection (nom de label retiré).
 		$data['inspection_type'] = preg_replace( '/-paracheck$/', '', (string) $data['inspection_type'] );
 
@@ -487,23 +524,28 @@ class CP_Controle {
 
 		$d['porosity'] = self::sanitize_rows( $raw, 'porosity', array( 'zone' => 'text', 'value' => 'number' ) );
 		$d['tear']     = self::sanitize_rows( $raw, 'tear', array( 'zone' => 'text', 'value' => 'number' ) );
-		$d['ptv_max']  = isset( $raw['ptv_max'] ) && is_numeric( str_replace( ',', '.', $raw['ptv_max'] ) ) ? (string) ( 0 + str_replace( ',', '.', $raw['ptv_max'] ) ) : '';
-		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'type' => 'text', 'new' => 'number', 'group' => 'text', 'level' => 'text', 'count' => 'number', 'measured' => 'number', 'minimum' => 'number' ) );
+		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'level' => 'text', 'type' => 'text', 'material' => 'text', 'new' => 'number', 'source' => 'text', 'measured' => 'number', 'minimum' => 'number' ) );
 		$types         = CP_Settings::line_types();
-		$ptv           = self::ptv_max( array_merge( $d, array( 'weight_range' => isset( $d['weight_range'] ) ? $d['weight_range'] : '' ) ) );
 		foreach ( $d['lines'] as $i => $row ) {
-			$row['type']  = isset( $types[ $row['type'] ] ) ? $row['type'] : '';
-			$row['group'] = array_key_exists( $row['group'], self::line_groups() ) ? $row['group'] : 'manuel';
-			$row['level'] = array_key_exists( $row['level'], self::line_levels() ) ? $row['level'] : 'bas';
+			$row['type']     = isset( $types[ $row['type'] ] ) ? $row['type'] : '';
+			$row['level']    = array_key_exists( $row['level'], self::line_levels() ) ? $row['level'] : 'L1';
+			$row['material'] = array_key_exists( $row['material'], self::line_materials() ) ? $row['material'] : 'aramide';
+			$row['source']   = array_key_exists( $row['source'], self::line_sources() ) ? $row['source'] : 'fournisseur';
 			if ( $row['type'] && '' === $row['new'] ) {
 				$row['new'] = (string) $types[ $row['type'] ]['new'];
 			}
 			// Minimum recalculé côté serveur (même règle que dans la fiche).
-			$min = self::line_minimum( $row, $ptv );
+			$min = self::line_minimum( $row );
 			if ( null !== $min ) {
 				$row['minimum'] = (string) $min;
 			}
 			$d['lines'][ $i ] = $row;
+		}
+		$d['conformity_date'] = self::sanitize_date( isset( $raw['conformity_date'] ) ? $raw['conformity_date'] : '' );
+		$d['safety_notice']   = ! empty( $raw['safety_notice'] ) ? '1' : '';
+		foreach ( array( 'temperature', 'humidity', 'next_hours' ) as $key ) {
+			$value     = isset( $raw[ $key ] ) ? str_replace( ',', '.', trim( (string) $raw[ $key ] ) ) : '';
+			$d[ $key ] = is_numeric( $value ) ? (string) ( 0 + $value ) : '';
 		}
 		$d['trim']     = CP_Trim::sanitize( isset( $raw['trim'] ) ? $raw['trim'] : array() );
 
@@ -609,12 +651,46 @@ class CP_Controle {
 		return $flow >= $t['porosity_reform'] ? 'bad' : ( $flow >= $t['porosity_alert'] ? 'warn' : 'ok' );
 	}
 
+	/**
+	 * Porosité par zone (PMA 5.2) : les mesures d'une même zone (même libellé) sont moyennées.
+	 *
+	 * @return array [ [ 'zone' => …, 'n' => …, 'mean' => l/m²/min, 'level' => ok|warn|bad ] ]
+	 */
+	public static function porosity_zones( array $rows, array $t ) {
+		$zones = array();
+		foreach ( $rows as $row ) {
+			$flow = self::porosity_lm2min( isset( $row['value'] ) ? $row['value'] : '', $t );
+			if ( null === $flow ) {
+				continue;
+			}
+			$key = trim( (string) $row['zone'] );
+			if ( ! isset( $zones[ $key ] ) ) {
+				$zones[ $key ] = array( 'zone' => $key, 'values' => array() );
+			}
+			$zones[ $key ]['values'][] = $flow;
+		}
+		foreach ( $zones as $key => $z ) {
+			$mean                     = array_sum( $z['values'] ) / count( $z['values'] );
+			$zones[ $key ]['n']       = count( $z['values'] );
+			$zones[ $key ]['mean']    = $mean;
+			$zones[ $key ]['level']   = $mean >= $t['porosity_reform'] ? 'bad' : ( $mean >= $t['porosity_alert'] ? 'warn' : 'ok' );
+		}
+		return array_values( $zones );
+	}
+
+	/**
+	 * Tous les tests PMA réalisés ? Sinon le rapport porte l'avertissement d'inspection partielle.
+	 */
+	public static function is_partial( array $d ) {
+		return (bool) array_diff( array_keys( self::tests() ), self::tests_done( $d ) );
+	}
+
 	public static function tear_level( $value, array $t ) {
 		if ( '' === $value || ! is_numeric( $value ) ) {
 			return '';
 		}
 		$value = (float) $value;
-		return $value < $t['tear_reform'] ? 'bad' : ( $value < $t['tear_good'] ? 'warn' : 'ok' );
+		return $value < $t['tear_reform'] ? 'bad' : ( $value <= $t['tear_good'] ? 'warn' : 'ok' );
 	}
 
 	/**

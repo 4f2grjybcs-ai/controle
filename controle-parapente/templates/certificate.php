@@ -37,7 +37,6 @@ $t           = CP_Controle::thresholds( $d );
 $state_now   = CP_Controle::global_state( $d );
 $state_basis = CP_Controle::state_basis( $d );
 $state_list  = CP_Controle::state_labels();
-$instruments = CP_Settings::instruments();
 
 // Sur le rapport, on n'affiche que les lignes réellement mesurées.
 $measured      = static function ( $rows, $field ) {
@@ -87,9 +86,9 @@ $status_labels = array(
 );
 $level_text = static function ( $level, $bad = null, $warn = null ) {
 	$labels = array(
-		'ok'   => __( 'Conforme', 'controle-parapente' ),
-		'warn' => null === $warn ? __( 'Alerte', 'controle-parapente' ) : $warn,
-		'bad'  => null === $bad ? __( 'Réforme', 'controle-parapente' ) : $bad,
+		'ok'   => __( 'Bon', 'controle-parapente' ),
+		'warn' => null === $warn ? __( 'Acceptable', 'controle-parapente' ) : $warn,
+		'bad'  => null === $bad ? __( 'Échec', 'controle-parapente' ) : $bad,
 	);
 	return isset( $labels[ $level ] ) ? $labels[ $level ] : '—';
 };
@@ -176,8 +175,15 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 			<div>
 				<span class="cp-small"><?php esc_html_e( 'Prochain contrôle conseillé', 'controle-parapente' ); ?></span>
 				<strong><?php echo esc_html( CP_Controle::format_date( $d['next_date'] ) ); ?></strong>
+				<?php if ( '' !== $d['next_hours'] ) : ?>
+					<span class="cp-small"><?php echo esc_html( sprintf( __( 'ou à %s h de vol (le premier des deux termes)', 'controle-parapente' ), $d['next_hours'] ) ); ?></span>
+				<?php endif; ?>
 			</div>
 		</section>
+
+		<?php if ( CP_Controle::is_partial( $d ) ) : ?>
+			<p class="cp-partial"><?php echo esc_html( $settings['partial_warning'] ); ?></p>
+		<?php endif; ?>
 
 		<!-- Synthèse -->
 		<section class="cp-synthesis">
@@ -251,6 +257,8 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 						__( 'Couleurs', 'controle-parapente' )        => $d['color'],
 						__( 'Heures de vol', 'controle-parapente' )   => $d['flight_hours'],
 						__( 'Dernier contrôle', 'controle-parapente' ) => $d['last_check'] ? CP_Controle::format_date( $d['last_check'] ) : '',
+						__( 'Contrôle de conformité constructeur', 'controle-parapente' ) => $d['conformity_date'] ? CP_Controle::format_date( $d['conformity_date'] ) : '',
+						__( 'Consignes de sécurité', 'controle-parapente' ) => $d['safety_notice'] ? __( 'vérifiées', 'controle-parapente' ) : '',
 					);
 					foreach ( array_filter( $equipment, 'strlen' ) as $label => $value ) :
 						?>
@@ -325,49 +333,41 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'P' ); ?>
 			<?php elseif ( $d['porosity'] ) : ?>
 				<?php
-				// Valeurs converties en l/m²/min (saisie en secondes : constante ÷ secondes).
+				// PMA 5.2 : moyenne de chaque zone en l/m²/min sous 20 mbar ; < 360 Bon, 360-540 Acceptable, > 540 Échec.
 				$seconds = 's' === $t['porosity_unit'];
-				$flows   = array();
-				foreach ( $d['porosity'] as $row ) {
-					$flows[] = array( 'value' => CP_Controle::porosity_lm2min( $row['value'], $t ) );
-				}
-				$stats   = CP_Controle::stats( $flows );
-				$lm      = ' l/m²/min';
-				$flow_lv = static function ( $flow ) use ( $t ) {
-					return null === $flow ? '' : ( $flow >= $t['porosity_reform'] ? 'bad' : ( $flow >= $t['porosity_alert'] ? 'warn' : 'ok' ) );
-				};
+				$zones   = CP_Controle::porosity_zones( $d['porosity'], $t );
+				$values  = ! empty( $settings['porosity_show_values'] );
 				?>
-				<?php if ( $stats ) : ?>
-				<div class="cp-metrics">
-					<div><span class="cp-small"><?php esc_html_e( 'Points mesurés', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $stats['n'] ); ?></strong></div>
-					<div><span class="cp-small"><?php esc_html_e( 'Minimum', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( round( $stats['min'] ) ) . $lm ); ?></strong></div>
-					<div><span class="cp-small"><?php esc_html_e( 'Maximum', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( round( $stats['max'] ) ) . $lm ); ?></strong></div>
-					<div class="lvl-<?php echo esc_attr( $flow_lv( $stats['mean'] ) ); ?>"><span class="cp-small"><?php esc_html_e( 'Moyenne', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( round( $stats['mean'] ) ) . $lm ); ?></strong></div>
-					<div><span class="cp-small"><?php esc_html_e( 'Alerte / réforme', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( $t['porosity_alert'] ) . ' / ' . $fmt( $t['porosity_reform'] ) . $lm ); ?></strong></div>
-				</div>
-				<?php endif; ?>
 				<table class="cp-table">
 					<thead><tr>
-						<th><?php esc_html_e( 'Position du point de mesure', 'controle-parapente' ); ?></th>
-						<?php if ( $seconds ) : ?><th class="num"><?php esc_html_e( 'Temps mesuré (s)', 'controle-parapente' ); ?></th><?php endif; ?>
-						<th class="num"><?php esc_html_e( 'Porosité (l/m²/min)', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Zone', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'Mesures', 'controle-parapente' ); ?></th>
+						<?php if ( $values ) : ?><th class="num"><?php esc_html_e( 'Moyenne (l/m²/min)', 'controle-parapente' ); ?></th><?php endif; ?>
 						<th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th>
 					</tr></thead>
 					<tbody>
-					<?php foreach ( $d['porosity'] as $i => $row ) : ?>
-						<?php $flow = $flows[ $i ]['value']; ?>
+					<?php foreach ( $zones as $zone ) : ?>
 						<tr>
-							<td><?php echo esc_html( $row['zone'] ); ?></td>
-							<?php if ( $seconds ) : ?><td class="num"><?php echo esc_html( $fmt( $row['value'] ) ); ?></td><?php endif; ?>
-							<td class="num"><?php echo esc_html( null === $flow ? '—' : $fmt( round( $flow ) ) ); ?></td>
-							<td class="lvl-<?php echo esc_attr( $flow_lv( $flow ) ); ?>"><?php echo esc_html( $level_text( $flow_lv( $flow ) ) ); ?></td>
+							<td><?php echo esc_html( $zone['zone'] ); ?></td>
+							<td class="num"><?php echo esc_html( $zone['n'] ); ?></td>
+							<?php if ( $values ) : ?><td class="num"><?php echo esc_html( $fmt( round( $zone['mean'] ) ) ); ?></td><?php endif; ?>
+							<td class="lvl-<?php echo esc_attr( $zone['level'] ); ?>"><?php echo esc_html( $level_text( $zone['level'] ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
-				<?php if ( $seconds ) : ?>
-					<p class="cp-small"><?php echo esc_html( sprintf( __( 'Conversion : l/m²/min = %s ÷ temps en secondes.', 'controle-parapente' ), $fmt( $t['porosity_factor'] ) ) ); ?></p>
-				<?php endif; ?>
+				<p class="cp-small">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: seuil bon, 2: seuil échec */
+							__( 'Extrados, entre 5 et 30 %% de la corde, sous 20 mbar, 4 zones sur l\'envergure. Bon : moins de %1$s l/m²/min ; Acceptable : de %1$s à %2$s ; Échec : plus de %2$s.', 'controle-parapente' ),
+							$fmt( $t['porosity_alert'] ),
+							$fmt( $t['porosity_reform'] )
+						) . ( $seconds ? ' ' . sprintf( __( 'Conversion : l/m²/min = %s ÷ temps en secondes.', 'controle-parapente' ), $fmt( $t['porosity_factor'] ) ) : '' )
+					);
+					?>
+				</p>
 			<?php else : ?>
 				<p class="cp-small">—</p>
 			<?php endif; ?>
@@ -377,19 +377,19 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'T' ); ?>
 			<?php elseif ( $d['tear'] ) : ?>
 				<table class="cp-table">
-					<thead><tr><th><?php esc_html_e( 'Position du point de mesure', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Force (g)', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Réforme (g)', 'controle-parapente' ); ?></th><th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th></tr></thead>
+					<thead><tr><th><?php esc_html_e( 'Position du point de mesure', 'controle-parapente' ); ?></th><th class="num"><?php esc_html_e( 'Force (daN)', 'controle-parapente' ); ?></th><th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th></tr></thead>
 					<tbody>
 					<?php foreach ( $d['tear'] as $row ) : ?>
 						<?php $level = CP_Controle::tear_level( $row['value'], $t ); ?>
 						<tr>
 							<td><?php echo esc_html( $row['zone'] ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $row['value'] ) ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $t['tear_reform'] ) ); ?></td>
-							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( $level_text( $level, null, __( 'À surveiller', 'controle-parapente' ) ) ); ?></td>
+							<td class="num"><?php echo esc_html( number_format_i18n( (float) $row['value'], 2 ) ); ?></td>
+							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( $level_text( $level ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				<p class="cp-small"><?php echo esc_html( sprintf( __( 'Rupture du ripstop : Échec sous %1$s daN ; Acceptable de %1$s à %2$s daN ; Bon au-delà.', 'controle-parapente' ), number_format_i18n( $t['tear_reform'], 1 ), number_format_i18n( $t['tear_good'], 1 ) ) ); ?></p>
 			<?php elseif ( $d['fabric_strength'] ) : ?>
 				<p><?php echo esc_html( $d['fabric_strength'] ); ?></p>
 			<?php else : ?>
@@ -403,12 +403,12 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php
 				$line_types = CP_Settings::line_types();
 				$levels     = CP_Controle::line_levels();
-				$ptv        = CP_Controle::ptv_max( $d );
+				$materials  = CP_Controle::line_materials();
 				?>
 				<table class="cp-table">
 					<thead><tr>
-						<th><?php esc_html_e( 'Suspente / étage', 'controle-parapente' ); ?></th>
-						<th><?php esc_html_e( 'Type', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Suspente testée', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Type / matière', 'controle-parapente' ); ?></th>
 						<th class="num"><?php esc_html_e( 'À neuf (daN)', 'controle-parapente' ); ?></th>
 						<th class="num"><?php esc_html_e( 'Rupture (daN)', 'controle-parapente' ); ?></th>
 						<th class="num"><?php esc_html_e( 'Minimum (daN)', 'controle-parapente' ); ?></th>
@@ -421,15 +421,17 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 						$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
 						$new   = isset( $row['new'] ) && is_numeric( $row['new'] ) && (float) $row['new'] > 0 ? (float) $row['new'] : null;
 						$type  = isset( $row['type'], $line_types[ $row['type'] ] ) ? $line_types[ $row['type'] ]['label'] : '';
+						$mat   = isset( $row['material'], $materials[ $row['material'] ] ) ? $materials[ $row['material'] ] : '';
+						$lvl   = isset( $row['level'], $levels[ $row['level'] ] ) ? $levels[ $row['level'] ] : '';
 						?>
 						<tr>
-							<td><?php echo esc_html( $row['line'] . ( isset( $row['level'], $levels[ $row['level'] ] ) && ! preg_match( '/étage/iu', $row['line'] ) ? ' — ' . mb_strtolower( $levels[ $row['level'] ] ) : '' ) ); ?></td>
-							<td class="cp-nowrap"><?php echo esc_html( $type ? $type : '—' ); ?></td>
+							<td><?php echo esc_html( $row['line'] ); ?><?php if ( $lvl && ! preg_match( '/niveau/iu', $row['line'] ) ) : ?><span class="cp-small"><?php echo esc_html( $lvl ); ?></span><?php endif; ?></td>
+							<td class="cp-nowrap"><?php echo esc_html( $type ? $type : '—' ); ?><span class="cp-small"><?php echo esc_html( $mat ); ?></span></td>
 							<td class="num"><?php echo esc_html( null === $new ? '—' : $fmt( $new ) ); ?></td>
 							<td class="num"><?php echo esc_html( $fmt( $row['measured'] ) ); ?></td>
 							<td class="num"><?php echo esc_html( $fmt( $row['minimum'] ) ); ?></td>
 							<td class="num"><?php echo esc_html( null !== $new && is_numeric( $row['measured'] ) ? round( (float) $row['measured'] / $new * 100 ) . ' %' : '—' ); ?></td>
-							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( $level_text( $level, __( 'Sous le minimum', 'controle-parapente' ) ) ); ?></td>
+							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( 'ok' === $level ? __( 'Conforme', 'controle-parapente' ) : ( 'bad' === $level ? __( 'Échec', 'controle-parapente' ) : '—' ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
@@ -438,12 +440,11 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 					<?php
 					echo esc_html(
 						sprintf(
-							/* translators: 1: PTV, 2: facteur A/B, 3: facteur C/D/E, 4: minimum suspentes hautes */
-							__( 'Minimum calculé selon la méthode PMA : PTV max %1$s kg × %2$s ÷ nombre de suspentes A/B à l\'étage ; × %3$s ÷ nombre de suspentes C/D/E ; suspentes hautes : %4$s kg minimum (valeurs converties en daN), sauf minimum indiqué par le constructeur.', 'controle-parapente' ),
-							$ptv ? $fmt( $ptv ) : '—',
-							CP_Settings::get( 'line_factor_ab' ),
-							CP_Settings::get( 'line_factor_cde' ),
-							CP_Settings::get( 'line_upper_min' )
+							/* translators: 1: coef fournisseur, 2: coef aramide, 3: coef dyneema */
+							__( 'Minimum (PMA 5.4) = valeur à neuf × source (constructeur 1,00 ; fournisseur %1$s) × matière (aramide / Technora / Vectran %2$s ; Dyneema %3$s), sauf minimum spécifique donné par le constructeur. Les suspentes testées ont été remplacées à l\'identique.', 'controle-parapente' ),
+							CP_Settings::get( 'line_source_supplier' ),
+							CP_Settings::get( 'line_coeff_aramid' ),
+							CP_Settings::get( 'line_coeff_dyneema' )
 						)
 					);
 					?>
@@ -476,24 +477,6 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<p><?php echo nl2br( esc_html( $d['internal_notes'] ) ); ?></p>
 			</section>
 		<?php endif; ?>
-
-		<section class="cp-norms">
-			<h2><?php esc_html_e( 'Normes et instruments', 'controle-parapente' ); ?></h2>
-			<p class="cp-small"><?php echo nl2br( esc_html( $settings['norms_reference'] ) ); ?></p>
-			<?php if ( $instruments ) : ?>
-				<ul class="cp-instruments">
-					<?php foreach ( $instruments as $inst ) : ?>
-						<li>
-							<strong><?php echo esc_html( $inst['label'] ); ?></strong>
-							<?php echo esc_html( $inst['name'] ); ?>
-							<?php if ( $inst['date'] ) : ?>
-								<span class="cp-small"><?php echo esc_html( sprintf( __( 'étalonné le %s', 'controle-parapente' ), CP_Controle::format_date( $inst['date'] ) ) ); ?></span>
-							<?php endif; ?>
-						</li>
-					<?php endforeach; ?>
-				</ul>
-			<?php endif; ?>
-		</section>
 
 		<footer class="cp-foot">
 			<div class="cp-signature">

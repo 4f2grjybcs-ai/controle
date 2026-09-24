@@ -58,9 +58,9 @@ class CP_Admin {
 				'tearReform'     => (float) CP_Settings::get( 'tear_reform' ),
 				'tearGood'       => (float) CP_Settings::get( 'tear_good' ),
 				'lineTypes'      => CP_Settings::line_types(),
-				'lineFactorAB'   => (float) CP_Settings::get( 'line_factor_ab' ),
-				'lineFactorCDE'  => (float) CP_Settings::get( 'line_factor_cde' ),
-				'lineUpperMin'   => (float) CP_Settings::get( 'line_upper_min' ),
+				'lineCoeffAramid'  => (float) CP_Settings::get( 'line_coeff_aramid' ),
+				'lineCoeffDyneema' => (float) CP_Settings::get( 'line_coeff_dyneema' ),
+				'lineSupplier'     => (float) CP_Settings::get( 'line_source_supplier' ),
 				'inspectionTypes' => array_map(
 					static function ( $t ) {
 						return $t['tests'];
@@ -147,7 +147,8 @@ class CP_Admin {
 		self::select( 'status', __( 'Statut', 'controle-parapente' ), $d['status'], CP_Controle::statuses() );
 		self::select( 'verdict', __( 'Verdict', 'controle-parapente' ), $d['verdict'], CP_Controle::verdicts() );
 		self::field( 'check_date', __( 'Date du contrôle', 'controle-parapente' ), $d['check_date'], 'date' );
-		self::field( 'next_date', __( 'Prochain contrôle', 'controle-parapente' ), $d['next_date'], 'date' );
+		self::field( 'next_date', __( 'Prochain contrôle (date)', 'controle-parapente' ), $d['next_date'], 'date' );
+		self::field( 'next_hours', __( 'ou à (heures de vol)', 'controle-parapente' ), $d['next_hours'], 'number', 'step="1" min="0"' );
 		self::field( 'technician', __( 'Contrôleur', 'controle-parapente' ), $d['technician'] ? $d['technician'] : wp_get_current_user()->display_name );
 		?>
 		<p>
@@ -202,6 +203,7 @@ class CP_Admin {
 		self::field( 'color', __( 'Couleurs', 'controle-parapente' ), $d['color'] );
 		self::field( 'flight_hours', __( 'Heures de vol (approx.)', 'controle-parapente' ), $d['flight_hours'], 'number', 'min="0"' );
 		self::field( 'last_check', __( 'Dernier contrôle', 'controle-parapente' ), $d['last_check'], 'date' );
+		self::field( 'conformity_date', __( 'Contrôle de conformité constructeur (vol de contrôle)', 'controle-parapente' ), $d['conformity_date'], 'date' );
 		echo '</div>';
 	}
 
@@ -325,13 +327,13 @@ class CP_Admin {
 		echo '<h4>' . esc_html__( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ) . '</h4>';
 		printf(
 			'<p class="description">%s</p>',
-			esc_html( sprintf( /* translators: 1: réforme, 2: bonne valeur */ __( 'Force de déchirure en grammes. Réforme sous %1$s g, à surveiller sous %2$s g.', 'controle-parapente' ), $t['tear_reform'], $t['tear_good'] ) )
+			esc_html( sprintf( /* translators: 1: réforme, 2: bonne valeur */ __( 'PMA : aiguille ancrée au milieu d\'un panneau d\'extrados (5-50 %% de corde), seconde aiguille à 5-6 cm, à 45° du ripstop ; tirer jusqu\'à %2$s daN ou jusqu\'à la rupture du ripstop. Moins de %1$s daN = Échec ; %1$s à %2$s = Acceptable ; plus = Bon.', 'controle-parapente' ), $t['tear_reform'], $t['tear_good'] ) )
 		);
 		self::repeatable(
 			'tear',
 			array(
 				'zone'  => array( __( 'Position du point de mesure', 'controle-parapente' ), 'text' ),
-				'value' => array( __( 'Force (g)', 'controle-parapente' ), 'number', 'step="10" min="0"' ),
+				'value' => array( __( 'Force (daN)', 'controle-parapente' ), 'number', 'step="0.01" min="0"' ),
 			),
 			$d['tear'],
 			__( 'Évaluation', 'controle-parapente' )
@@ -340,22 +342,18 @@ class CP_Admin {
 			printf( '<p class="description">%s %s</p>', esc_html__( 'Ancienne saisie :', 'controle-parapente' ), esc_html( $d['fabric_strength'] ) );
 		}
 		echo '<h4>' . esc_html__( 'Résistance des suspentes (test de rupture)', 'controle-parapente' ) . '</h4>';
-		$ptv = CP_Controle::ptv_max( $d );
 		printf(
 			'<p class="description">%s</p>',
 			esc_html(
 				sprintf(
-					/* translators: 1: facteur A/B, 2: facteur C/D/E, 3: minimum suspentes hautes */
-					__( 'Choisissez le type de suspente (valeur à neuf), le groupe, l\'étage et le nombre de suspentes à cet étage (hors stabilo) : le minimum est calculé automatiquement — A/B : PTV × %1$s ÷ n ; C/D/E : PTV × %2$s ÷ n ; suspentes hautes : %3$s kg minimum. En « Manuel », saisissez le minimum du constructeur.', 'controle-parapente' ),
-					CP_Settings::get( 'line_factor_ab' ),
-					CP_Settings::get( 'line_factor_cde' ),
-					CP_Settings::get( 'line_upper_min' )
+					/* translators: 1: coef aramide, 2: coef dyneema, 3: coef fournisseur */
+					__( 'PMA : au moins une suspente de chaque niveau (de préférence A/B, près du centre). Minimum = valeur à neuf × source (constructeur 1,00 / fournisseur %3$s) × matière (aramide / Technora / Vectran %1$s, Dyneema %2$s). Si le constructeur donne un minimum, choisissez « Minimum donné par le constructeur » et saisissez-le.', 'controle-parapente' ),
+					CP_Settings::get( 'line_coeff_aramid' ),
+					CP_Settings::get( 'line_coeff_dyneema' ),
+					CP_Settings::get( 'line_source_supplier' )
 				)
 			)
 		);
-		echo '<div class="cp-grid">';
-		self::field( 'ptv_max', __( 'PTV max de l\'aile (kg)', 'controle-parapente' ), $d['ptv_max'], 'number', 'step="any" min="0" placeholder="' . esc_attr( $ptv ? $ptv : '' ) . '"' );
-		echo '</div>';
 		$types = array( '' => '—' );
 		foreach ( CP_Settings::line_types() as $slug => $type ) {
 			$types[ $slug ] = $type['label'] . ( $type['material'] ? ' (' . $type['material'] . ')' : '' );
@@ -363,12 +361,12 @@ class CP_Admin {
 		self::repeatable(
 			'lines',
 			array(
-				'line'     => array( __( 'Suspente', 'controle-parapente' ), 'text' ),
+				'line'     => array( __( 'Suspente testée', 'controle-parapente' ), 'text' ),
+				'level'    => array( __( 'Niveau', 'controle-parapente' ), 'select', CP_Controle::line_levels(), 'L1' ),
 				'type'     => array( __( 'Type', 'controle-parapente' ), 'select', $types, '' ),
+				'material' => array( __( 'Matière', 'controle-parapente' ), 'select', CP_Controle::line_materials(), 'aramide' ),
 				'new'      => array( __( 'À neuf (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
-				'group'    => array( __( 'Groupe', 'controle-parapente' ), 'select', CP_Controle::line_groups(), 'ab' ),
-				'level'    => array( __( 'Étage', 'controle-parapente' ), 'select', CP_Controle::line_levels(), 'bas' ),
-				'count'    => array( __( 'Nb à l\'étage', 'controle-parapente' ), 'number', 'step="1" min="1"' ),
+				'source'   => array( __( 'Source de la valeur', 'controle-parapente' ), 'select', CP_Controle::line_sources(), 'fournisseur' ),
 				'measured' => array( __( 'Rupture (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
 				'minimum'  => array( __( 'Minimum (daN)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
 			),
@@ -398,7 +396,7 @@ class CP_Admin {
 			printf( '<td><input type="text" class="widefat" name="cp[visual][%s][comment]" value="%s" /></td></tr>', esc_attr( $key ), esc_attr( $comment ) );
 		}
 		echo '</tbody></table>';
-		printf( '<p><button type="button" class="button cp-all-ok">%s</button></p>', esc_html__( 'Tout marquer « Bon état » (champs vides)', 'controle-parapente' ) );
+		printf( '<p><button type="button" class="button cp-all-ok">%s</button></p>', esc_html__( 'Tout marquer « Bon » (champs vides)', 'controle-parapente' ) );
 	}
 
 	public static function box_inspection( $post ) {
@@ -426,14 +424,25 @@ class CP_Admin {
 		}
 		echo '</tbody></table>';
 
+		echo '<h4>' . esc_html__( 'Conditions et prérequis (PMA 4)', 'controle-parapente' ) . '</h4><div class="cp-grid">';
+		self::field( 'temperature', __( 'Température (°C, 5 à 35)', 'controle-parapente' ), $d['temperature'], 'number', 'step="0.5"' );
+		self::field( 'humidity', __( 'Humidité (%, 30 à 80)', 'controle-parapente' ), $d['humidity'], 'number', 'step="1" min="0" max="100"' );
+		printf(
+			'<p class="cp-field"><span class="cp-label">%s</span><label class="cp-check"><input type="checkbox" name="cp[safety_notice]" value="1" %s /> %s</label></p>',
+			esc_html__( 'Consignes de sécurité', 'controle-parapente' ),
+			checked( $d['safety_notice'], '1', false ),
+			esc_html__( 'Vérifiées pour ce modèle', 'controle-parapente' )
+		);
+		echo '</div>';
+
 		$unit = 'l/m²/min';
 		echo '<h4>' . esc_html__( 'Seuils de ce contrôle', 'controle-parapente' ) . '</h4>';
 		echo '<p class="description">' . esc_html__( 'Laisser vide pour utiliser les valeurs des réglages. Ordre de priorité : constructeur, PMA, référence de l\'atelier.', 'controle-parapente' ) . '</p><div class="cp-grid">';
 		/* translators: %s: unité */
-		self::field( 'por_alert', sprintf( __( 'Porosité — alerte (%s)', 'controle-parapente' ), $unit ), $d['por_alert'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_alert' ) ) . '"' );
+		self::field( 'por_alert', sprintf( __( 'Porosité — limite Bon / Acceptable (%s)', 'controle-parapente' ), $unit ), $d['por_alert'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_alert' ) ) . '"' );
 		/* translators: %s: unité */
-		self::field( 'por_reform', sprintf( __( 'Porosité — réforme (%s)', 'controle-parapente' ), $unit ), $d['por_reform'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_reform' ) ) . '"' );
-		self::field( 'tear_reform', __( 'Déchirure — réforme (g)', 'controle-parapente' ), $d['tear_reform'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'tear_reform' ) ) . '"' );
+		self::field( 'por_reform', sprintf( __( 'Porosité — limite Acceptable / Échec (%s)', 'controle-parapente' ), $unit ), $d['por_reform'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_reform' ) ) . '"' );
+		self::field( 'tear_reform', __( 'Déchirure — limite Échec (daN)', 'controle-parapente' ), $d['tear_reform'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'tear_reform' ) ) . '"' );
 		echo '</div>';
 
 		$expired = array_filter(
@@ -517,6 +526,11 @@ class CP_Admin {
 
 		if ( '' === $data['next_date'] && '' !== $data['check_date'] && '' !== $data['verdict'] && 'non_navigable' !== $data['verdict'] ) {
 			$data['next_date'] = CP_Controle::suggested_next_date( $data['check_date'] );
+		}
+
+		// PMA : prochain contrôle aussi en heures de vol (heures actuelles + intervalle).
+		if ( '' === $data['next_hours'] && '' !== $data['flight_hours'] && (int) CP_Settings::get( 'validity_hours' ) > 0 ) {
+			$data['next_hours'] = (string) ( (int) $data['flight_hours'] + (int) CP_Settings::get( 'validity_hours' ) );
 		}
 
 		CP_Controle::save( $post_id, $data );

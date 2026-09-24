@@ -70,7 +70,8 @@ class CP_Settings {
 			'h_admin'             => array( 'atelier', 'heading', __( 'Fonctionnement', 'controle-parapente' ) ),
 			'notify_email'        => array( 'atelier', 'email', __( 'E-mail recevant les nouvelles demandes', 'controle-parapente' ), get_option( 'admin_email' ) ),
 			'reference_prefix'    => array( 'atelier', 'text', __( 'Préfixe des références', 'controle-parapente' ), 'CP', __( 'Ex. CP → CP-2026-0001', 'controle-parapente' ) ),
-			'validity_months'     => array( 'atelier', 'number', __( 'Prochain contrôle conseillé après (mois)', 'controle-parapente' ), 24 ),
+			'validity_months'     => array( 'atelier', 'number', __( 'Prochain contrôle conseillé après (mois)', 'controle-parapente' ), 36, __( 'PMA : 3 ans maximum par défaut, sauf indication du manuel de l\'aile.', 'controle-parapente' ) ),
+			'validity_hours'      => array( 'atelier', 'number', __( 'Prochain contrôle conseillé après (heures de vol)', 'controle-parapente' ), 150, __( 'PMA : 150 heures de vol par défaut (le premier des deux termes atteint).', 'controle-parapente' ) ),
 			'reminder_days'       => array( 'atelier', 'number', __( 'Rappel client avant l\'échéance (jours, 0 = aucun)', 'controle-parapente' ), 30 ),
 
 			/* ---------------- Normes & seuils ---------------- */
@@ -80,17 +81,21 @@ class CP_Settings {
 			'h_porosity'          => array( 'normes', 'heading', __( 'Porosité', 'controle-parapente' ) ),
 			'porosity_unit'       => array( 'normes', 'select', __( 'Unité de saisie', 'controle-parapente' ), 's', __( 'Les mesures saisies en secondes sont converties en l/m²/min sur le rapport.', 'controle-parapente' ), self::porosity_units() ),
 			'porosity_factor'     => array( 'normes', 'number', __( 'Constante de conversion secondes → l/m²/min', 'controle-parapente' ), 5400, __( 'l/m²/min = constante ÷ temps en secondes. 5400 correspond à 10 s ≈ 540 l/m²/min et 11 s ≈ 490 l/m²/min ; adaptez-la à votre porosimètre.', 'controle-parapente' ) ),
-			'porosity_alert'      => array( 'normes', 'number', __( 'Valeur d\'alerte (l/m²/min)', 'controle-parapente' ), 490, __( 'Alerte au-dessus de cette valeur.', 'controle-parapente' ) ),
-			'porosity_reform'     => array( 'normes', 'number', __( 'Valeur de réforme (l/m²/min)', 'controle-parapente' ), 540, __( 'Réforme au-dessus de cette valeur.', 'controle-parapente' ) ),
-			'h_tear'              => array( 'normes', 'heading', __( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ) ),
-			'tear_reform'         => array( 'normes', 'number', __( 'Valeur de réforme (g)', 'controle-parapente' ), 600 ),
-			'tear_good'           => array( 'normes', 'number', __( 'Valeur « bonne » (g)', 'controle-parapente' ), 900, __( 'Entre la réforme et cette valeur : à surveiller.', 'controle-parapente' ) ),
-			'h_lines'             => array( 'normes', 'heading', __( 'Résistance des suspentes (calcul du minimum)', 'controle-parapente' ), '', __( 'Minimum = PTV max × facteur ÷ nombre de suspentes à cet étage (hors stabilo), converti en daN. Suspentes hautes : jamais moins que le minimum ci-dessous.', 'controle-parapente' ) ),
-			'line_factor_ab'      => array( 'normes', 'number', __( 'Facteur suspentes A / B', 'controle-parapente' ), 8 ),
-			'line_factor_cde'     => array( 'normes', 'number', __( 'Facteur suspentes C / D / E', 'controle-parapente' ), 6 ),
-			'line_upper_min'      => array( 'normes', 'number', __( 'Minimum suspentes hautes (kg)', 'controle-parapente' ), 30 ),
+			'porosity_alert'      => array( 'normes', 'number', __( 'Limite Bon / Acceptable (l/m²/min)', 'controle-parapente' ), 360, __( 'PMA : moins de 360 = Bon ; de 360 à 540 = Acceptable.', 'controle-parapente' ) ),
+			'porosity_reform'     => array( 'normes', 'number', __( 'Limite Acceptable / Échec (l/m²/min)', 'controle-parapente' ), 540, __( 'PMA : plus de 540 = Échec (critère : moyenne de chaque zone < 540).', 'controle-parapente' ) ),
+			'porosity_show_values' => array( 'normes', 'checkbox', __( 'Afficher les valeurs de porosité sur le rapport', 'controle-parapente' ), '', __( 'La PMA recommande de ne pas reporter les valeurs (comparaison difficile entre tissus) : sans cette case, le rapport donne l\'évaluation de chaque zone.', 'controle-parapente' ) ),
+			'h_tear'              => array( 'normes', 'heading', __( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ), '', __( 'PMA : en daN ; moins de 0,6 = Échec ; 0,6 à 0,7 = Acceptable ; plus de 0,7 = Bon.', 'controle-parapente' ) ),
+			'tear_reform'         => array( 'normes', 'number', __( 'Limite Échec / Acceptable (daN)', 'controle-parapente' ), 0.6 ),
+			'tear_good'           => array( 'normes', 'number', __( 'Limite Acceptable / Bon (daN)', 'controle-parapente' ), 0.7 ),
+			'h_lines'             => array( 'normes', 'heading', __( 'Résistance des suspentes (PMA 5.4)', 'controle-parapente' ), '', __( 'Minimum = valeur à neuf × coefficient de source × coefficient de matière. Le minimum indiqué par le constructeur de l\'aile reste prioritaire.', 'controle-parapente' ) ),
+			'line_coeff_aramid'   => array( 'normes', 'number', __( 'Coefficient aramide / Technora / Vectran', 'controle-parapente' ), 0.45 ),
+			'line_coeff_dyneema'  => array( 'normes', 'number', __( 'Coefficient Dyneema', 'controle-parapente' ), 0.65 ),
+			'line_source_supplier' => array( 'normes', 'number', __( 'Coefficient si la valeur à neuf vient du fournisseur de suspentes', 'controle-parapente' ), 1.05, __( 'Valeur fournie par le constructeur de l\'aile : 1,00.', 'controle-parapente' ) ),
 			'h_geometry'          => array( 'normes', 'heading', __( 'Géométrie (calage)', 'controle-parapente' ) ),
-			'trim_tolerance'      => array( 'normes', 'number', __( 'Tolérance par défaut (± mm)', 'controle-parapente' ), 10, __( 'Modifiable sur chaque fiche, dans la feuille de calage.', 'controle-parapente' ) ),
+			'trim_tolerance'      => array( 'normes', 'number', __( 'Tolérance par défaut (± mm)', 'controle-parapente' ), 12, __( 'PMA : ± 12 mm pour chaque longueur totale (hors freins). Modifiable sur chaque fiche.', 'controle-parapente' ) ),
+			'brake_min'           => array( 'normes', 'number', __( 'Freins : écart minimum (mm)', 'controle-parapente' ), 0, __( 'PMA : freins entre 0 et +50 mm.', 'controle-parapente' ) ),
+			'brake_max'           => array( 'normes', 'number', __( 'Freins : écart maximum (mm)', 'controle-parapente' ), 50 ),
+			'offset_max_pct'      => array( 'normes', 'number', __( 'Offset maximum (% de la plus grande longueur totale)', 'controle-parapente' ), 1.5, __( 'PMA : ± 1,5 %.', 'controle-parapente' ) ),
 			'trim_load'           => array( 'normes', 'text', __( 'Tension de mesure des suspentes', 'controle-parapente' ), '5 daN', __( 'Affichée sur le rapport (le standard PMA prévoit une mesure sous 5 daN).', 'controle-parapente' ) ),
 
 			/* ---------------- Instruments ---------------- */
@@ -113,6 +118,7 @@ class CP_Settings {
 			'state_title'         => array( 'rapport', 'text', __( 'Titre du curseur d\'état', 'controle-parapente' ), __( 'État général de l\'aile', 'controle-parapente' ) ),
 			'state_labels'        => array( 'rapport', 'lines', __( 'Positions du curseur d\'état (une par ligne, de la meilleure à la pire)', 'controle-parapente' ), "Neuf\nTrès bon\nBon\nAcceptable\nLimite\nRéformé" ),
 			'state_help'          => array( 'rapport', 'textarea', __( 'Explication du curseur', 'controle-parapente' ), __( 'Le curseur indique l\'état de l\'aile au jour du contrôle, d\'après les tests réalisés ; il ne constitue ni un pourcentage d\'usure, ni une durée de vie restante.', 'controle-parapente' ) ),
+			'partial_warning'     => array( 'rapport', 'textarea', __( 'Avertissement d\'inspection partielle', 'controle-parapente' ), __( 'Attention : cette inspection est une inspection partielle et ne permet pas de valider entièrement la navigabilité de l\'aile.', 'controle-parapente' ), __( 'Exigé par la PMA quand les cinq tests ne sont pas tous réalisés.', 'controle-parapente' ) ),
 			'state_unavailable'   => array( 'rapport', 'textarea', __( 'Texte si l\'état général n\'est pas renseigné', 'controle-parapente' ), __( 'État général non évalué lors de ce contrôle.', 'controle-parapente' ) ),
 			'h_sections'          => array( 'rapport', 'heading', __( 'Titres des inspections', 'controle-parapente' ) ),
 			'title_visual'        => array( 'rapport', 'text', __( 'Inspection visuelle', 'controle-parapente' ), __( 'Inspection visuelle', 'controle-parapente' ) ),
@@ -127,9 +133,9 @@ class CP_Settings {
 			/* ---------------- Listes ---------------- */
 			'inspection_types'    => array( 'listes', 'lines', __( 'Types d\'inspection', 'controle-parapente' ), "Révision périodique | V P T L G E\nInspection intermédiaire | V P T G\nInspection basique | V P T G\nInspection mécanique | P T L\nInspection géométrique | G\nInspection visuelle / après incident | V", __( 'Une par ligne : « Nom | lettres des tests inclus ». V = visuelle, P = porosité, T = déchirure, L = résistance des suspentes, G = calage. Les tests absents apparaissent « Non réalisé » sur le rapport.', 'controle-parapente' ) ),
 			'visual_items'        => array( 'listes', 'lines', __( 'Points de l\'inspection visuelle', 'controle-parapente' ), "Tissu extrados (déchirures, usure, UV)\nTissu intrados\nBord d'attaque, joncs, entrées d'air\nBord de fuite\nCloisons, diagonales, renforts\nCoutures\nPattes et points d'ancrage des suspentes\nSuspentes (gaine, nœuds, abrasion)\nÉlévateurs (sangles, coutures, marquage)\nMaillons / connecteurs\nSystème d'accélérateur (poulies, drisses)\nPoignées et drisses de frein\nÉtiquette et marquage d'homologation", __( 'Un point par ligne. Renommer un point efface son état sur les fiches existantes.', 'controle-parapente' ) ),
-			'porosity_points'     => array( 'listes', 'lines', __( 'Points de mesure de porosité proposés', 'controle-parapente' ), "Extrados — centre gauche (20-30 cm du BA)\nExtrados — centre droit (20-30 cm du BA)\nExtrados — 1/4 envergure gauche\nExtrados — 1/4 envergure droite\nExtrados — 1/2 envergure gauche\nExtrados — 1/2 envergure droite\nIntrados — centre" ),
-			'tear_points'         => array( 'listes', 'lines', __( 'Points de mesure de déchirure proposés', 'controle-parapente' ), "Extrados — bord d'attaque centre\nIntrados — centre\nCloison — centre" ),
-			'line_points'         => array( 'listes', 'lines', __( 'Suspentes testées à la rupture proposées', 'controle-parapente' ), "A — étage bas (centrale)\nA — étage médian\nA — étage haut\nB — étage bas (centrale)\nC — étage bas (centrale)\nFrein — étage bas" ),
+			'porosity_points'     => array( 'listes', 'lines', __( 'Points de mesure de porosité proposés', 'controle-parapente' ), "Zone 1 — bout d'aile gauche (extrados, 5-30 % de corde)\nZone 2 — centre gauche (extrados, 5-30 % de corde)\nZone 3 — centre droit (extrados, 5-30 % de corde)\nZone 4 — bout d'aile droit (extrados, 5-30 % de corde)", __( 'PMA : 4 zones sur l\'envergure, au moins une mesure par zone, hors caisson central, à au moins 4 caissons d\'écart. Plusieurs mesures d\'une même zone (même libellé) sont moyennées.', 'controle-parapente' ) ),
+			'tear_points'         => array( 'listes', 'lines', __( 'Points de mesure de déchirure proposés', 'controle-parapente' ), "Extrados — panneau central (5-50 % de corde)\nCloison — suspente A groupe 1 (≥ 10 cm de l'attache)" ),
+			'line_points'         => array( 'listes', 'lines', __( 'Suspentes testées à la rupture proposées', 'controle-parapente' ), "A1 — niveau 1 (basse)\nA1 — niveau 2 (médiane)\nA1 — niveau 3 (haute)", __( 'PMA : au moins une suspente de chaque niveau, de préférence A/B et proche du centre.', 'controle-parapente' ) ),
 			'line_types'          => array( 'listes', 'lines', __( 'Types de suspentes (catalogue)', 'controle-parapente' ), "Edelrid 8000U-050 | Aramide | 50\nEdelrid 8000U-070 | Aramide | 70\nEdelrid 8000U-090 | Aramide | 90\nEdelrid 8000U-130 | Aramide | 130\nEdelrid 8000U-190 | Aramide | 190\nEdelrid 8000U-230 | Aramide | 230\nEdelrid 8000U-280 | Aramide | 280\nLiros PPSL-120 | Dyneema | 120\nLiros PPSL-160 | Dyneema | 160\nLiros PPSL-200 | Dyneema | 200\nLiros PPSL-275 | Dyneema | 275\nLiros DC-060 | Dyneema | 60\nLiros DC-100 | Dyneema | 100", __( 'Une par ligne : « Nom | matière | résistance à neuf en daN ». Vérifiez les valeurs dans les fiches techniques du fabricant de suspentes ou le manuel de l\'aile.', 'controle-parapente' ) ),
 			'services'            => array( 'listes', 'lines', __( 'Prestations proposées', 'controle-parapente' ), "Révision complète\nRecalage des suspentes\nRéparation\nRepliage parachute de secours" ),
 
@@ -159,6 +165,36 @@ class CP_Settings {
 	 * Retire l'ancienne mention d'un label commercial des réglages déjà enregistrés.
 	 */
 	private static function migrate( array $settings ) {
+		// Alignement sur le PMA Standard V2024.12.1 (une seule fois) : anciennes valeurs par défaut remplacées.
+		if ( ! get_option( 'cp_pma_2024' ) ) {
+			update_option( 'cp_pma_2024', 1, false );
+			$stored = (array) get_option( self::OPTION, array() );
+			$map    = array(
+				'porosity_alert'  => array( 490, 360 ),
+				'trim_tolerance'  => array( 10, 12 ),
+				'validity_months' => array( 24, 36 ),
+			);
+			foreach ( $map as $key => $change ) {
+				if ( isset( $stored[ $key ] ) && $change[0] == $stored[ $key ] ) {
+					$stored[ $key ]   = $change[1];
+					$settings[ $key ] = $change[1];
+				}
+			}
+			// Déchirure : grammes → daN.
+			foreach ( array( 'tear_reform', 'tear_good' ) as $key ) {
+				if ( isset( $stored[ $key ] ) && (float) $stored[ $key ] > 5 ) {
+					$stored[ $key ]   = self::defaults()[ $key ];
+					$settings[ $key ] = $stored[ $key ];
+				}
+			}
+			foreach ( array( 'porosity_points', 'tear_points', 'line_points' ) as $key ) {
+				unset( $stored[ $key ] );
+				$settings[ $key ] = self::defaults()[ $key ];
+			}
+			if ( $stored ) {
+				update_option( self::OPTION, $stored );
+			}
+		}
 		// Anciennes positions du curseur d'état par défaut remplacées par les nouveaux termes.
 		$old_states = array( 'Neuf', 'Très bon état', 'Bon état', 'État correct', 'Usé — à surveiller', 'Réforme' );
 		if ( array_map( 'trim', preg_split( '/\r\n|\r|\n/', trim( (string) $settings['state_labels'] ) ) ) === $old_states ) {

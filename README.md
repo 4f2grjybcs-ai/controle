@@ -17,8 +17,8 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 
 - **Formulaire de demande** (`[cp_demande_controle]`) : coordonnées du pilote, équipement (marque, modèle, taille, n° de série, homologation…), prestations (contrôle, recalage, réparation, repliage secours), mode de dépôt. Une référence unique est attribuée (ex. `CP-2026-0001`) et des e-mails sont envoyés à l'atelier et au client. Protections : nonce, champ pot de miel anti-robots, limite de 5 demandes/heure par IP, consentement RGPD.
 - **Fiche de contrôle** dans l'admin (menu *Contrôles*) :
-  - porosité (porosimètre, en secondes) avec évaluation automatique Conforme / À surveiller / Non conforme ;
-  - résistance du tissu (Bettsomètre) et des suspentes (rupture mesurée vs minimum requis) ;
+  - porosité (porosimètre, en secondes) avec évaluation automatique Bon / Acceptable / Échec ;
+  - résistance du tissu (Bettsomètre, en daN) et des suspentes (rupture mesurée vs minimum requis) ;
   - **calage** (voir ci-dessous) ;
   - contrôle visuel (12 points : extrados, intrados, cloisons, suspentes, élévateurs, maillons, accélérateur, freins…) ;
   - réparations, observations pour le client, notes internes ;
@@ -28,7 +28,7 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 - **Certificat / fiche imprimable** (A4, « enregistrer en PDF » depuis le navigateur). Lien public sécurisé par clé secrète envoyé au client ; les notes internes n'y apparaissent jamais.
 - **Suivi client** (`[cp_suivi_controle]`) : le client saisit sa référence + son e-mail pour voir l'avancement, le résultat et accéder à sa fiche.
 - **E-mails** : nouvelle demande (atelier + client), changement de statut (optionnel, case à cocher), **rappel automatique** X jours avant l'échéance du prochain contrôle (un seul rappel par échéance, pas de rappel si la même aile a déjà un contrôle plus récent).
-- **Réglages** : coordonnées de l'atelier, n° d'agrément, préfixe des références, validité d'un contrôle (24 mois par défaut), délai de rappel, seuils de porosité, tolérance de calage, textes du formulaire et du certificat.
+- **Réglages** : coordonnées de l'atelier, n° d'agrément, préfixe des références, validité d'un contrôle (3 ans ou 150 h de vol, selon la PMA), délai de rappel, seuils de porosité, tolérance de calage, textes du formulaire et du certificat.
 
 ## Normes
 
@@ -37,8 +37,12 @@ Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 20
 - identification de l'atelier : nom, responsable, n° de police d'assurance RC pro ;
 - **type d'inspection** (révision périodique, intermédiaire, basique, mécanique, géométrique, visuelle/incident) : les tests non inclus apparaissent **« Non réalisé »**, avec la préconisation du constructeur en commentaire ;
 - **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf / Très bon / Bon / Acceptable / Limite / Réformé), avec la liste des tests sur lesquels il repose (même si tous n'ont pas été réalisés) ; aucun pourcentage d'usure ni durée de vie restante ;
-- **porosité** saisie en secondes et convertie en **l/m²/min** sur le rapport (constante réglable, 5400 par défaut) : chaque point avec sa position, minimum, maximum, moyenne, valeurs d'alerte et de réforme ;
-- **déchirure** (Bettsomètre, en g) et **résistance des suspentes** : pour chaque suspente testée, **type** choisi dans un catalogue (résistance à neuf), groupe A/B ou C/D/E, étage et nombre de suspentes à l'étage ; le **minimum est calculé automatiquement** (méthode PMA : PTV max × 8 ÷ n pour A/B, × 6 ÷ n pour C/D/E, 30 kg minimum pour les suspentes hautes, converti en daN) et le rapport indique le **% de la résistance à neuf** ;
+- **porosité** saisie en secondes et convertie en **l/m²/min** sur le rapport (5400 ÷ secondes, sous 20 mbar) : 4 zones sur l'envergure, extrados entre 5 et 30 % de la corde ; moyenne par zone < 360 Bon, 360–540 Acceptable, > 540 Échec. Comme le recommande la PMA, les valeurs brutes ne sont pas affichées au client (option dans les réglages) ;
+- **déchirure** (Bettsomètre, en **daN**) : < 0,6 Échec, 0,6–0,7 Acceptable, > 0,7 Bon ;
+- **résistance des suspentes** : pour chaque suspente testée (niveaux A1 bas → haut), **type** choisi dans un catalogue (résistance à neuf et matière) ; le **minimum est calculé automatiquement** selon la PMA : *valeur à neuf × source (constructeur 1,00 / fournisseur 1,05) × matière (aramide / Technora / Vectran 0,45 ; Dyneema 0,65)*, ou saisi à la main si le constructeur donne un minimum. Le rapport indique le **% de la résistance à neuf** ;
+- **contrôle visuel** avec les mêmes termes que l'état global : Neuf / Très bon / Bon / Acceptable / Limite / Réformé ;
+- **conditions** (température 5–35 °C, humidité 30–80 %), date de conformité constructeur, consignes de sécurité, heures de vol (prochain contrôle = heures actuelles + 150 h) ;
+- **contrôle partiel** : si les 5 tests ne sont pas tous réalisés, le rapport affiche un avertissement ;
 - **calage** : longueurs mesurées sous la tension indiquée (5 daN selon le PMA) ;
 - origine des seuils (constructeur → PMA → référence de l'atelier), modifiable pour chaque contrôle ;
 - instruments de mesure et dates d'étalonnage (alerte dans l'atelier si l'étalonnage a plus de 12 mois).
@@ -59,10 +63,10 @@ Dans l'espace atelier, le calage a son propre onglet **« Calage »** dans la fi
 
 1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe, du centre vers le bout d'aile.
    - **Cases vides** : chaque groupe peut avoir des cases vides, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement ; un clic dans le petit plan du groupe place la case vide **au début, au milieu ou à la fin**.
-2. **Mesures usine** : les cotes du constructeur, saisies une seule fois pour la fiche, avec l'**élévateur** ; l'usine corrigée s'affiche à côté (*usine + élévateur + offset*).
+2. **Mesures usine** : les cotes du constructeur, saisies une seule fois pour la fiche, avec l'**élévateur** ; l'usine corrigée s'affiche à côté (*usine + élévateur*).
 3. **Feuille de calage** : pour la 1ère ou la 2e mesure, côté gauche ou droit, seulement **Mesures voile → Résultat**, puis **Max / Min / Diff** (dernière colonne : la différence max − min entre les rangées).
-   - En haut : **Tolérance ±** (10 mm par défaut, boutons − / +) et **Offset**, dates, 1ère mesure figée.
-   - *Résultat = voile − usine corrigée* : case verte dans la tolérance, **rouge dès qu'elle en sort** (la case de saisie se colore aussi).
+   - En haut : **Tolérance ±** (12 mm par défaut selon la PMA, freins de 0 à +50 mm, boutons − / +) et **Offset** (ajouté à chaque mesure, alerte au-delà de ±1,5 % de la plus grande longueur), dates, 1ère mesure figée.
+   - *Résultat = voile + offset − usine corrigée* : case verte dans la tolérance, **rouge dès qu'elle en sort** (la case de saisie se colore aussi).
    - Flèches et Entrée pour se déplacer ; collez une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
    - Sous la feuille : l'écart moyen par groupe et l'**aperçu du dessin client**, mis à jour pendant la saisie.
 

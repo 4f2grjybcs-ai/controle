@@ -13,9 +13,9 @@
 		tearGood: parseFloat( raw.tearGood ) || 0,
 		inspectionTypes: raw.inspectionTypes || {},
 		lineTypes: raw.lineTypes || {},
-		lineFactorAB: parseFloat( raw.lineFactorAB ) || 8,
-		lineFactorCDE: parseFloat( raw.lineFactorCDE ) || 6,
-		lineUpperMin: parseFloat( raw.lineUpperMin ) || 30,
+		lineCoeffAramid: parseFloat( raw.lineCoeffAramid ) || 0.45,
+		lineCoeffDyneema: parseFloat( raw.lineCoeffDyneema ) || 0.65,
+		lineSupplier: parseFloat( raw.lineSupplier ) || 1.05,
 		validityMonths: parseInt( raw.validityMonths, 10 ) || 0,
 		ajaxUrl: raw.ajaxUrl,
 		searchNonce: raw.searchNonce
@@ -65,12 +65,12 @@
 			}
 			var shown = cfg.porosityUnit === 's' ? '≈ ' + Math.round( flow ) + ' l/m²/min · ' : '';
 			if ( flow >= reform ) {
-				return setComputed( row, shown + 'Réforme', 'bad' );
+				return setComputed( row, shown + 'Échec', 'bad' );
 			}
 			if ( flow >= alert ) {
-				return setComputed( row, shown + 'Alerte', 'warn' );
+				return setComputed( row, shown + 'Acceptable', 'warn' );
 			}
-			return setComputed( row, shown + 'Conforme', 'ok' );
+			return setComputed( row, shown + 'Bon', 'ok' );
 		},
 		tear: function ( row ) {
 			var v = field( row, 'value' );
@@ -79,38 +79,34 @@
 			}
 			var reform = threshold( 'cp-tear_reform', cfg.tearReform );
 			if ( v < reform ) {
-				return setComputed( row, 'Réforme', 'bad' );
+				return setComputed( row, 'Échec', 'bad' );
 			}
-			setComputed( row, v < cfg.tearGood ? 'À surveiller' : 'Conforme', v < cfg.tearGood ? 'warn' : 'ok' );
+			setComputed( row, v <= cfg.tearGood ? 'Acceptable' : 'Bon', v <= cfg.tearGood ? 'warn' : 'ok' );
 		},
 		lines: function ( row ) {
 			var get = function ( name ) {
 				return row.querySelector( '[data-field="' + name + '"]' );
 			};
-			var group = get( 'group' ) ? get( 'group' ).value : 'manuel';
+			var source = get( 'source' ) ? get( 'source' ).value : 'minimum';
 			var minInput = get( 'minimum' );
-			// Minimum calculé (type PMA) : PTV × facteur ÷ nombre de suspentes à l'étage, en daN.
+			// PMA 5.4 : minimum = valeur à neuf × coefficient de source × coefficient de matière.
 			if ( minInput ) {
-				minInput.readOnly = group !== 'manuel';
-				var n = field( row, 'count' );
-				var ptvEl = document.getElementById( 'cp-ptv_max' );
-				var ptv = ptvEl ? ( num( ptvEl.value ) || num( ptvEl.getAttribute( 'placeholder' ) ) ) : null;
-				if ( group !== 'manuel' && n && ptv ) {
-					var kg = ptv * ( group === 'ab' ? cfg.lineFactorAB : cfg.lineFactorCDE ) / n;
-					if ( get( 'level' ) && get( 'level' ).value === 'haut' ) {
-						kg = Math.max( kg, cfg.lineUpperMin );
-					}
-					minInput.value = String( Math.round( kg * 0.980665 * 10 ) / 10 );
+				minInput.readOnly = source !== 'minimum';
+				var nw = field( row, 'new' );
+				if ( source !== 'minimum' && nw ) {
+					var coeff = get( 'material' ) && get( 'material' ).value === 'dyneema' ? cfg.lineCoeffDyneema : cfg.lineCoeffAramid;
+					var src = source === 'constructeur' ? 1 : cfg.lineSupplier;
+					minInput.value = String( Math.round( nw * src * coeff * 10 ) / 10 );
 				}
 			}
 			var m = field( row, 'measured' );
 			var min = field( row, 'minimum' );
-			var nw = field( row, 'new' );
+			var neu = field( row, 'new' );
 			if ( m === null || min === null ) {
 				return setComputed( row, '', '' );
 			}
-			var pct = nw ? ' · ' + Math.round( m / nw * 100 ) + ' % du neuf' : '';
-			setComputed( row, ( m >= min ? 'Conforme' : 'Sous le minimum' ) + pct, m >= min ? 'ok' : 'bad' );
+			var pct = neu ? ' · ' + Math.round( m / neu * 100 ) + ' % du neuf' : '';
+			setComputed( row, ( m >= min ? 'Conforme' : 'Échec' ) + pct, m >= min ? 'ok' : 'bad' );
 		}
 	};
 
@@ -161,17 +157,15 @@
 			if ( t && nw ) {
 				nw.value = t.new;
 			}
+			var mat = el.closest( 'tr' ).querySelector( '[data-field="material"]' );
+			if ( t && mat ) {
+				mat.value = /dyneema/i.test( t.material + ' ' + t.label ) ? 'dyneema' : 'aramide';
+			}
 		}
 		if ( el.closest && el.closest( '.cp-repeat' ) ) {
 			evaluate( el.closest( '.cp-repeat' ) );
 		}
 	} );
-	var ptvInput = document.getElementById( 'cp-ptv_max' );
-	if ( ptvInput ) {
-		ptvInput.addEventListener( 'input', function () {
-			document.querySelectorAll( '.cp-repeat[data-key="lines"]' ).forEach( evaluate );
-		} );
-	}
 
 	// Seuils modifiés : réévaluer les tableaux.
 	[ 'cp-por_alert', 'cp-por_reform', 'cp-tear_reform' ].forEach( function ( id ) {
@@ -200,7 +194,7 @@
 		allOk.addEventListener( 'click', function () {
 			document.querySelectorAll( '.cp-visual .cp-state' ).forEach( function ( select ) {
 				if ( select.value === '' ) {
-					select.value = 'ok';
+					select.value = 'bon';
 				}
 			} );
 		} );

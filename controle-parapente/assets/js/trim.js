@@ -82,9 +82,16 @@
 		return v === null || v <= 0 ? tolerance : v;
 	}
 
-	function level( dev ) {
+	var brakeMin = parseFloat( root.getAttribute( 'data-brake-min' ) ) || 0;
+	var brakeMax = parseFloat( root.getAttribute( 'data-brake-max' ) ) || 50;
+
+	/** Dans la tolérance ? Freins (rangée F) : entre le minimum et le maximum (PMA : 0 à +50 mm). */
+	function level( dev, row ) {
 		if ( dev === null || dev === undefined ) {
 			return '';
+		}
+		if ( row === 'F' ) {
+			return dev >= brakeMin && dev <= brakeMax ? 'ok' : 'bad';
 		}
 		return Math.abs( dev ) <= tol() ? 'ok' : 'bad';
 	}
@@ -250,20 +257,20 @@
 		return state[ set ][ id ] && state[ set ][ id ][ side ] !== undefined ? state[ set ][ id ][ side ] : '';
 	}
 
-	/** Usine corrigée = usine + élévateur + offset. */
+	/** Usine corrigée = usine + élévateur (l'offset s'ajoute aux mesures, PMA 5.5). */
 	function corrected( id ) {
 		var f = num( factory( id ) );
 		if ( f === null ) {
 			return null;
 		}
-		return f + ( num( riserInput ? riserInput.value : '' ) || 0 ) + ( num( offsetInput ? offsetInput.value : '' ) || 0 );
+		return f + ( num( riserInput ? riserInput.value : '' ) || 0 );
 	}
 
-	/** Résultat = voile − usine corrigée. */
+	/** Résultat Δ = voile + offset − usine corrigée. */
 	function result( set, id, side ) {
 		var m = num( measure( set, id, side ) );
 		var c = corrected( id );
-		return m === null || c === null ? null : m - c;
+		return m === null || c === null ? null : m + ( num( offsetInput ? offsetInput.value : '' ) || 0 ) - c;
 	}
 
 	function syncJson() {
@@ -536,14 +543,14 @@
 			} else {
 				v = result( view.set, id, view.side );
 				td.textContent = signed( v );
-				td.classList.toggle( 'lvl-ok', level( v ) === 'ok' );
-				td.classList.toggle( 'lvl-bad', level( v ) === 'bad' );
+				td.classList.toggle( 'lvl-ok', level( v, id.charAt( 0 ) ) === 'ok' );
+				td.classList.toggle( 'lvl-bad', level( v, id.charAt( 0 ) ) === 'bad' );
 			}
 		} );
 
 		// La case de mesure voile change aussi de couleur hors tolérance.
 		sheetBox.querySelectorAll( '[data-voile]' ).forEach( function ( td ) {
-			var lv = level( result( view.set, td.getAttribute( 'data-voile' ), view.side ) );
+			var lv = level( result( view.set, td.getAttribute( 'data-voile' ), view.side ), td.getAttribute( 'data-voile' ).charAt( 0 ) );
 			td.classList.toggle( 'is-ok', lv === 'ok' );
 			td.classList.toggle( 'is-bad', lv === 'bad' );
 		} );
@@ -583,9 +590,25 @@
 				return a + b;
 			}, 0 ) / values.length : null;
 			td.textContent = signed( m );
-			td.classList.toggle( 'lvl-ok', level( m ) === 'ok' );
-			td.classList.toggle( 'lvl-bad', level( m ) === 'bad' );
+			td.classList.toggle( 'lvl-ok', level( m, td.getAttribute( 'data-rowmean' ) ) === 'ok' );
+			td.classList.toggle( 'lvl-bad', level( m, td.getAttribute( 'data-rowmean' ) ) === 'bad' );
 		} );
+
+		// PMA : l'offset ne doit pas dépasser ± 1,5 % de la plus grande longueur totale.
+		var warn = $( '.cp-offset-warn' );
+		if ( warn ) {
+			var maxLen = 0;
+			Object.keys( state.factory ).forEach( function ( id ) {
+				var c = corrected( id );
+				if ( c !== null ) {
+					maxLen = Math.max( maxLen, c );
+				}
+			} );
+			var limit = Math.round( maxLen * ( parseFloat( root.getAttribute( 'data-offset-pct' ) ) || 1.5 ) ) / 100;
+			var off = num( offsetInput ? offsetInput.value : '' ) || 0;
+			warn.hidden = ! maxLen || Math.abs( off ) <= limit;
+			warn.textContent = '⚠ Offset au-delà de ± ' + fmt( limit ) + ' mm (1,5 % de la plus grande longueur)';
+		}
 
 		renderSummary();
 		syncJson();
@@ -637,7 +660,7 @@
 							any = true;
 						}
 						var current = set === view.set && side === view.side ? ' is-current' : '';
-						html += '<td class="lvl-' + level( m ) + current + '">' + ( m === null ? '·' : signed( m ) ) + '</td>';
+						html += '<td class="lvl-' + level( m, row ) + current + '">' + ( m === null ? '·' : signed( m ) ) + '</td>';
 					} );
 				} );
 				html += '</tr>';
