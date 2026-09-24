@@ -69,7 +69,7 @@
 		form.addEventListener( 'input', mark );
 		form.addEventListener( 'change', mark );
 		form.addEventListener( 'click', function ( e ) {
-			if ( e.target.closest( '.cp-add-row, .cp-remove-row, .cp-all-ok, .cp-trim-copy, .cp-previous-results button' ) ) {
+			if ( e.target.closest( '.cp-add-row, .cp-remove-row, .cp-all-ok, .cp-trim-copy, .cp-previous-results button, .cp-trim-add-group, .cp-trim-chip-del, .cp-trim-palette button, .cp-stepper button, .cp-trim-suggest, .cp-trim-reset' ) ) {
 				mark();
 			}
 		} );

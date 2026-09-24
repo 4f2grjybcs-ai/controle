@@ -446,3 +446,11 @@ body.cp-atelier {
 	.cp-hello h1 { font-size: 26px; }
 	.cp-card { padding: 16px; }
 }
+
+/* Calage : étapes et contrôles dans l'espace atelier */
+.cp-atelier .cp-trim-steps { background: var( --cp-surface-2 ); }
+.cp-atelier .cp-trim-control { background: var( --cp-accent-soft ); border-color: color-mix( in srgb, var( --cp-accent ) 20%, transparent ); }
+.cp-atelier .cp-trim-row-head th { background: var( --cp-ink ) !important; }
+.cp-atelier .cp-trim-group-head td { background: color-mix( in srgb, var( --chip, #999 ) 12%, #fff ); }
+.cp-atelier .cp-stepper input { min-height: 36px; }
+.cp-atelier .cp-trim-chip .cp-trim-count { min-height: 30px; }

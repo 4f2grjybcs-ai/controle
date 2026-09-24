@@ -207,3 +207,6 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 	.cp-signature { margin-bottom: 12px; }
 	.cp-table { display: block; overflow-x: auto; }
 }
+
+.cp-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; border: 1px solid rgba( 0, 0, 0, 0.2 ); vertical-align: -1px; }
+.cp-trim-risers-table { width: auto; min-width: 50%; }
