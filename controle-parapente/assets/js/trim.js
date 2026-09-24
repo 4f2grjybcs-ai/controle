@@ -401,7 +401,7 @@
 			html += '<th colspan="' + rows.length + '" class="cp-sheet-block ' + b.cls + '">' + esc( b.label ) + '</th>';
 		} );
 		if ( withStats ) {
-			html += '<th colspan="3" class="cp-sheet-block is-diff">Différence</th><th rowspan="2" class="cp-sheet-block is-mean">Moyenne</th>';
+			html += '<th colspan="3" class="cp-sheet-block is-diff">Différence</th>';
 		}
 		html += '</tr><tr>';
 		blocks.forEach( function ( b ) {
@@ -439,7 +439,7 @@
 				} );
 			} );
 			if ( withStats ) {
-				html += '<td class="cp-sheet-calc is-diff is-first" data-stat="max"></td><td class="cp-sheet-calc is-diff" data-stat="min"></td><td class="cp-sheet-calc is-diff" data-stat="diff"></td><td class="cp-sheet-calc is-mean is-first" data-stat="mean"></td>';
+				html += '<td class="cp-sheet-calc is-diff is-first" data-stat="max"></td><td class="cp-sheet-calc is-diff" data-stat="min"></td><td class="cp-sheet-calc is-diff is-last" data-stat="diff"></td>';
 			}
 			html += '</tr>';
 		}
@@ -453,7 +453,7 @@
 					html += '<td class="' + ( ri === 0 ? 'is-first ' : '' ) + ( b.key === 'res' ? 'cp-sheet-calc is-result" data-rowmean="' + r : '' ) + '"></td>';
 				} );
 			} );
-			html += '<td colspan="4"></td></tr></tfoot>';
+			html += '<td colspan="3"></td></tr></tfoot>';
 		}
 		box.innerHTML = html + '</table>';
 	}
@@ -490,17 +490,14 @@
 					values.push( v );
 				}
 			} );
-			var stats = { max: '', min: '', diff: '', mean: '' };
+			var stats = { max: '', min: '', diff: '' };
 			if ( values.length ) {
 				var mx = Math.max.apply( null, values );
 				var mn = Math.min.apply( null, values );
 				stats = {
 					max: signed( mx ),
 					min: signed( mn ),
-					diff: fmt( mx - mn ),
-					mean: signed( values.reduce( function ( a, b ) {
-						return a + b;
-					}, 0 ) / values.length )
+					diff: fmt( mx - mn )
 				};
 			}
 			Object.keys( stats ).forEach( function ( k ) {

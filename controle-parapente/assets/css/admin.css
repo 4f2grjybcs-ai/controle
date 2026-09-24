@@ -460,3 +460,4 @@
 .cp-sheet-table tfoot .lvl-bad { background: #e8826a; color: #fff; }
 #cp-trim-tol { font-weight: 800; color: #8a3f22; }
 .cp-sheet-factory .cp-sheet-input { width: 72px; }
+.cp-sheet-calc.is-diff.is-last { font-weight: 800; color: #3d2f28; background: #f7edf5; }
