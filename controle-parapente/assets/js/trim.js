@@ -135,20 +135,71 @@
 		return list;
 	}
 
-	/** Cases d'une rangée dans la feuille : une suspente, ou null pour une case vide. */
+	/** Cases d'une rangée dans la feuille : une suspente, ou { id: null } pour une case vide. */
 	function rowSlots( row ) {
 		var slots = [];
 		var n = 0;
 		state.structure[ row ].forEach( function ( g, gi ) {
-			for ( var k = 0; k < count( g ); k++ ) {
-				n++;
-				slots.push( { id: row + n, n: n, group: gi + 1, color: g.color } );
-			}
-			for ( var v = 0; v < gap( g ); v++ ) {
-				slots.push( { id: null, group: gi + 1, color: g.color } );
+			var empty = emptyPositions( g );
+			for ( var k = 0; k < count( g ) + gap( g ); k++ ) {
+				if ( empty.indexOf( k ) !== -1 ) {
+					slots.push( { id: null, group: gi + 1, color: g.color } );
+				} else {
+					n++;
+					slots.push( { id: row + n, n: n, group: gi + 1, color: g.color } );
+				}
 			}
 		} );
 		return slots;
+	}
+
+	/** Positions des cases vides d'un groupe (0 = première case) ; en fin de groupe par défaut. */
+	function emptyPositions( g ) {
+		var total = count( g ) + gap( g );
+		var wish = Array.isArray( g.empty ) ? g.empty : String( g.empty || '' ).split( ',' ).filter( function ( x ) {
+			return x !== '';
+		} );
+		var pos = [];
+		wish.forEach( function ( p ) {
+			p = parseInt( p, 10 );
+			if ( p >= 0 && p < total && pos.indexOf( p ) === -1 ) {
+				pos.push( p );
+			}
+		} );
+		if ( pos.length !== gap( g ) ) {
+			pos = [];
+			for ( var k = count( g ); k < total; k++ ) {
+				pos.push( k );
+			}
+		}
+		g.empty = pos.sort( function ( a, b ) {
+			return a - b;
+		} );
+		return g.empty;
+	}
+
+	/** Déplace une case vide vers la position cliquée (échange avec la case vide la plus proche). */
+	function moveEmpty( g, target ) {
+		var empty = emptyPositions( g ).slice();
+		if ( ! empty.length || empty.indexOf( target ) !== -1 ) {
+			return;
+		}
+		var nearest = empty.reduce( function ( a, b ) {
+			return Math.abs( b - target ) < Math.abs( a - target ) ? b : a;
+		} );
+		empty[ empty.indexOf( nearest ) ] = target;
+		g.empty = empty;
+	}
+
+	/** Mini-plan cliquable des cases d'un groupe : ■ suspente, □ case vide. */
+	function slotMap( row, i, g ) {
+		var empty = emptyPositions( g );
+		var html = '<span class="cp-trim-map" title="Cliquez à l\'endroit où la case doit être vide">';
+		for ( var k = 0; k < count( g ) + gap( g ); k++ ) {
+			var isEmpty = empty.indexOf( k ) !== -1;
+			html += '<button type="button" class="cp-trim-slot' + ( isEmpty ? ' is-empty' : '' ) + '" data-row="' + row + '" data-i="' + i + '" data-k="' + k + '" aria-label="' + ( isEmpty ? 'Case vide' : 'Suspente' ) + ' ' + ( k + 1 ) + '"></button>';
+		}
+		return html + '</span>';
 	}
 
 	function gap( g ) {
@@ -178,6 +229,7 @@
 				var g = state.structure[ r ][ gi ];
 				if ( g ) {
 					g.gap = height - count( g );
+					emptyPositions( g );
 				}
 			} );
 		}
@@ -259,7 +311,9 @@
 					swatch( g.color ) + '<span>' + esc( colorName( g.color ) ) + '</span></button>' +
 					'<input type="hidden" name="' + base + '[color]" value="' + esc( g.color ) + '" />' +
 					'<input type="number" min="1" max="40" class="cp-trim-count" data-row="' + row + '" data-i="' + i + '" name="' + base + '[count]" value="' + esc( g.count ) + '" aria-label="Nombre de suspentes" title="Nombre de suspentes" />' +
-					'<label class="cp-trim-gap" title="Cases vides laissées après ce groupe dans la feuille">+<input type="number" min="0" max="40" class="cp-trim-gap-input" data-row="' + row + '" data-i="' + i + '" name="' + base + '[gap]" value="' + esc( gap( g ) ) + '" aria-label="Cases vides" /> vide</label>' +
+					'<label class="cp-trim-gap" title="Cases vides dans ce groupe (début, milieu ou fin)">+<input type="number" min="0" max="40" class="cp-trim-gap-input" data-row="' + row + '" data-i="' + i + '" name="' + base + '[gap]" value="' + esc( gap( g ) ) + '" aria-label="Cases vides" /> vide</label>' +
+					'<input type="hidden" name="' + base + '[empty]" value="' + esc( emptyPositions( g ).join( ',' ) ) + '" />' +
+					( gap( g ) ? slotMap( row, i, g ) : '' ) +
 					'<button type="button" class="cp-trim-chip-del" data-row="' + row + '" data-i="' + i + '" aria-label="Supprimer le groupe">×</button>' +
 					'</div>';
 			} );
@@ -267,7 +321,7 @@
 			html += '</div></div>';
 		} );
 		html += '<p class="cp-trim-align"><button type="button" class="button cp-trim-align-btn">Aligner les groupes entre A, B, C, D</button> ' +
-			'<span class="description">Ajoute automatiquement des cases vides quand un groupe n\'a pas le même nombre de suspentes sur chaque rangée (ex. 4 A, 4 B, 4 C mais 5 D).</span></p>';
+			'<span class="description">Ajoute automatiquement des cases vides quand un groupe n\'a pas le même nombre de suspentes sur chaque rangée (ex. 4 A, 4 B, 4 C mais 5 D). Pour placer une case vide au début, au milieu ou à la fin du groupe, cliquez à l\'endroit voulu dans le petit plan du groupe.</span></p>';
 		structureBox.innerHTML = html;
 	}
 
@@ -286,6 +340,12 @@
 		var add = e.target.closest( '.cp-trim-add-group' );
 		if ( e.target.closest( '.cp-trim-align-btn' ) ) {
 			alignGroups();
+			return;
+		}
+		var slot = e.target.closest( '.cp-trim-slot' );
+		if ( slot ) {
+			moveEmpty( state.structure[ slot.getAttribute( 'data-row' ) ][ +slot.getAttribute( 'data-i' ) ], +slot.getAttribute( 'data-k' ) );
+			structureChanged();
 			return;
 		}
 		if ( colorBtn ) {
@@ -342,6 +402,13 @@
 			var srow = e.target.closest( '.cp-trim-srow' );
 			srow.querySelector( 'small' ).textContent = rowLines( srow.getAttribute( 'data-row' ) ).length + ' susp.';
 			schedulePreview();
+		}
+	} );
+
+	// Nombre de cases vides modifié : redessiner le plan du groupe une fois la saisie terminée.
+	structureBox.addEventListener( 'change', function ( e ) {
+		if ( e.target.classList.contains( 'cp-trim-gap-input' ) || e.target.classList.contains( 'cp-trim-count' ) ) {
+			structureChanged();
 		}
 	} );
 
@@ -819,7 +886,7 @@
 		}
 		ROW_KEYS.forEach( function ( row ) {
 			state.structure[ row ] = ( ( trim.structure && trim.structure[ row ] ) || [] ).map( function ( g, i ) {
-				return typeof g === 'object' ? { count: g.count, color: g.color, gap: g.gap || 0 } : { count: g, color: COLOR_KEYS[ i % COLOR_KEYS.length ], gap: 0 };
+				return typeof g === 'object' ? { count: g.count, color: g.color, gap: g.gap || 0, empty: g.empty || [] } : { count: g, color: COLOR_KEYS[ i % COLOR_KEYS.length ], gap: 0, empty: [] };
 			} );
 		} );
 		state.factory = trim.factory || {};

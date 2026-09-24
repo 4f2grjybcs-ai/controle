@@ -55,10 +55,10 @@ Le rapport s'imprime (ou s'enregistre en PDF) sur des pages **A4** sans couper l
 
 ## Calage
 
-La saisie reprend la feuille de calage habituelle de l'atelier, en plus pratique.
+Dans l'espace atelier, le calage a son propre onglet **« Calage »** dans la fiche. La saisie reprend la feuille de calage habituelle de l'atelier, en plus pratique.
 
 1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe, du centre vers le bout d'aile.
-   - **Cases vides** : chaque groupe peut laisser des cases vides après ses suspentes, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement.
+   - **Cases vides** : chaque groupe peut avoir des cases vides, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement ; un clic dans le petit plan du groupe place la case vide **au début, au milieu ou à la fin**.
 2. **Mesures usine** : les cotes du constructeur, saisies une seule fois pour la fiche, avec l'**élévateur** ; l'usine corrigée s'affiche à côté (*usine + élévateur + offset*).
 3. **Feuille de calage** : pour la 1ère ou la 2e mesure, côté gauche ou droit, seulement **Mesures voile → Résultat**, puis **Max / Min / Diff** (dernière colonne : la différence max − min entre les rangées).
    - En haut : **Tolérance ±** (10 mm par défaut, boutons − / +) et **Offset**, dates, 1ère mesure figée.

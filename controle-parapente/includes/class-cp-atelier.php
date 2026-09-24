@@ -422,6 +422,7 @@ class CP_Atelier {
 		$tabs     = array(
 			'client'     => __( 'Client & aile', 'controle-parapente' ),
 			'mesures'    => __( 'Atelier · mesures', 'controle-parapente' ),
+			'calage'     => __( 'Calage', 'controle-parapente' ),
 			'conclusion' => __( 'Conclusion', 'controle-parapente' ),
 			'rapport'    => __( 'Rapport client', 'controle-parapente' ),
 		);
@@ -470,9 +471,11 @@ class CP_Atelier {
 						self::card( __( 'Type d\'inspection & normes', 'controle-parapente' ), array( 'CP_Admin', 'box_inspection' ), $post );
 						self::card( __( 'Porosité du tissu', 'controle-parapente' ), array( 'CP_Admin', 'box_porosity' ), $post );
 						self::card( __( 'Déchirure & résistance des suspentes', 'controle-parapente' ), array( 'CP_Admin', 'box_strength' ), $post );
-						self::card( __( 'Calage', 'controle-parapente' ), array( 'CP_Admin', 'box_trim' ), $post, 'cp-card--wide' );
 						self::card( CP_Settings::get( 'title_visual' ), array( 'CP_Admin', 'box_visual' ), $post );
 						?>
+					</div>
+					<div class="cp-panel" data-panel="calage">
+						<?php self::card( __( 'Calage', 'controle-parapente' ), array( 'CP_Admin', 'box_trim' ), $post, 'cp-card--wide' ); ?>
 					</div>
 					<div class="cp-panel" data-panel="conclusion">
 						<?php self::card( __( 'Conclusions', 'controle-parapente' ), array( 'CP_Admin', 'box_conclusion' ), $post ); ?>

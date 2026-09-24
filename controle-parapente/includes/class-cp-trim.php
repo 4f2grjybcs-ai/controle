@@ -7,7 +7,8 @@
  * - sides          : 'both' (gauche + droite) ou 'one' (un seul côté)
  * - riser_length   : longueur d'élévateur (mm) ajoutée aux cotes usine
  * - offset         : correction de mesure (mm) ajoutée aux cotes usine
- * - structure      : [ 'A' => [ [ 'count' => 4, 'color' => 'rouge', 'gap' => 1 ], … ], … ]
+ * - structure      : [ 'A' => [ [ 'count' => 4, 'color' => 'rouge', 'gap' => 1, 'empty' => [ 4 ] ], … ], … ]
+ *                    empty = positions des cases vides dans le groupe (0 = première case) : début, fin ou milieu
  *                    gap = cases vides laissées après le groupe dans la feuille (alignement des groupes entre rangées)
  * - factory        : [ 'A1' => 7000, … ] cotes usine
  * - initial, final : [ 'A1' => [ 'G' => 7012, 'D' => 7008 ], … ] mesures brutes
@@ -137,6 +138,7 @@ class CP_Trim {
 					'color' => isset( $group['color'], $colors[ $group['color'] ] ) ? $group['color'] : self::default_color( $i ),
 					'gap'   => isset( $group['gap'] ) ? max( 0, min( self::MAX_LINES, (int) $group['gap'] ) ) : 0,
 				);
+				$groups[ $i ]['empty'] = self::empty_positions( $groups[ $i ]['count'], $groups[ $i ]['gap'], isset( $group['empty'] ) ? $group['empty'] : null );
 			}
 			$trim['structure'][ $row ] = $groups;
 		}
@@ -185,15 +187,45 @@ class CP_Trim {
 		$slots = array();
 		$n     = 0;
 		foreach ( isset( $structure[ $row ] ) ? (array) $structure[ $row ] : array() as $gi => $group ) {
-			for ( $k = 0; $k < (int) $group['count']; $k++ ) {
-				++$n;
-				$slots[] = array( 'id' => $row . $n, 'group' => $gi + 1 );
-			}
-			for ( $k = 0; $k < (int) ( isset( $group['gap'] ) ? $group['gap'] : 0 ); $k++ ) {
-				$slots[] = array( 'id' => null, 'group' => $gi + 1 );
+			$gap   = isset( $group['gap'] ) ? (int) $group['gap'] : 0;
+			$empty = self::empty_positions( (int) $group['count'], $gap, isset( $group['empty'] ) ? $group['empty'] : null );
+			for ( $k = 0; $k < (int) $group['count'] + $gap; $k++ ) {
+				if ( in_array( $k, $empty, true ) ) {
+					$slots[] = array( 'id' => null, 'group' => $gi + 1 );
+				} else {
+					++$n;
+					$slots[] = array( 'id' => $row . $n, 'group' => $gi + 1 );
+				}
 			}
 		}
 		return $slots;
+	}
+
+	/**
+	 * Positions valides des cases vides d'un groupe (par défaut : en fin de groupe).
+	 *
+	 * @param int          $count Nombre de suspentes.
+	 * @param int          $gap   Nombre de cases vides.
+	 * @param string|array $wish  Positions souhaitées ("0,3" ou [ 0, 3 ]).
+	 * @return int[]
+	 */
+	public static function empty_positions( $count, $gap, $wish = null ) {
+		$total = $count + $gap;
+		if ( is_string( $wish ) ) {
+			$wish = '' === trim( $wish ) ? array() : explode( ',', $wish );
+		}
+		$positions = array();
+		foreach ( (array) $wish as $p ) {
+			$p = (int) $p;
+			if ( $p >= 0 && $p < $total && ! in_array( $p, $positions, true ) ) {
+				$positions[] = $p;
+			}
+		}
+		if ( count( $positions ) !== $gap ) {
+			$positions = $gap > 0 ? range( $count, $total - 1 ) : array();
+		}
+		sort( $positions );
+		return $positions;
 	}
 
 	public static function num( $value ) {
@@ -240,10 +272,12 @@ class CP_Trim {
 						continue;
 					}
 					$color    = is_array( $group ) && isset( $group['color'] ) ? sanitize_key( $group['color'] ) : '';
+					$gap      = is_array( $group ) && isset( $group['gap'] ) ? min( self::MAX_LINES, absint( $group['gap'] ) ) : 0;
 					$groups[] = array(
 						'count' => min( self::MAX_LINES, $count ),
 						'color' => isset( $colors[ $color ] ) ? $color : self::default_color( count( $groups ) ),
-						'gap'   => is_array( $group ) && isset( $group['gap'] ) ? min( self::MAX_LINES, absint( $group['gap'] ) ) : 0,
+						'gap'   => $gap,
+						'empty' => self::empty_positions( min( self::MAX_LINES, $count ), $gap, is_array( $group ) && isset( $group['empty'] ) ? $group['empty'] : null ),
 					);
 				}
 			}
