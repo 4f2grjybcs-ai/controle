@@ -515,7 +515,15 @@ class CP_Trim {
 	/* Rapport                                                             */
 	/* ------------------------------------------------------------------ */
 
-	public static function render_certificate( array $trim, $trim_adjusted, $title = null ) {
+	/**
+	 * Section calage du rapport.
+	 *
+	 * @param array       $trim          Données de calage.
+	 * @param string      $trim_adjusted Aile recalée.
+	 * @param string|null $title         Titre de la section.
+	 * @param bool        $detailed      Tableaux détaillés (fiche atelier) ; sinon seulement le dessin (rapport client).
+	 */
+	public static function render_certificate( array $trim, $trim_adjusted, $title = null, $detailed = true ) {
 		$trim     = self::normalize( $trim );
 		$analysis = self::analyze( $trim );
 		if ( ! $analysis['has_data'] ) {
@@ -538,7 +546,7 @@ class CP_Trim {
 				if ( CP_Settings::get( 'trim_load' ) ) {
 					$info[] = sprintf( __( 'longueurs mesurées sous %s', 'controle-parapente' ), CP_Settings::get( 'trim_load' ) );
 				}
-				if ( 0.0 !== $analysis['offset'] ) {
+				if ( $detailed && 0.0 !== $analysis['offset'] ) {
 					$info[] = sprintf( __( 'offset de mesure : %s mm', 'controle-parapente' ), self::signed( $analysis['offset'] ) );
 				}
 				if ( $trim['initial_date'] ) {
@@ -554,6 +562,22 @@ class CP_Trim {
 				?>
 			</p>
 
+			<?php echo self::wing_svg( $trim, $analysis ); // phpcs:ignore WordPress.Security.EscapeOutput -- SVG construit et échappé dans wing_svg(). ?>
+			<p class="cp-small cp-wing-legend">
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %s: tolérance */
+						__( 'Aile vue de dessus, bord d\'attaque en haut. Chaque étiquette donne l\'écart moyen du groupe de suspentes par rapport aux cotes du constructeur (mm)%1$s. Vert : dans la tolérance de ± %2$s mm ; rouge : hors tolérance.', 'controle-parapente' ),
+						$has_final ? __( ' après intervention, avec la valeur avant intervention en petit', 'controle-parapente' ) : '',
+						CP_Settings::get( 'trim_tolerance' )
+					)
+				);
+				?>
+			</p>
+
+			<?php if ( $detailed ) : ?>
+			<h3 class="cp-workshop-only"><?php esc_html_e( 'Détail atelier', 'controle-parapente' ); ?></h3>
 			<?php if ( $has_riser ) : ?>
 				<h3><?php esc_html_e( 'Réglage des élévateurs', 'controle-parapente' ); ?></h3>
 				<table class="cp-table cp-trim-risers-table">
@@ -667,7 +691,152 @@ class CP_Trim {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+		<?php endif; ?>
 		</section>
 		<?php
+	}
+
+	/**
+	 * Dessin de l'aile vue de dessus avec l'écart moyen de chaque groupe (SVG).
+	 *
+	 * Les groupes sont placés sur l'envergure dans l'ordre de numérotation (du centre
+	 * vers le bout d'aile), et sur la corde selon leur rangée (A au bord d'attaque,
+	 * freins au bord de fuite). La moitié gauche de l'aile porte les valeurs du côté
+	 * gauche, la moitié droite celles du côté droit.
+	 *
+	 * @param array $trim     Données normalisées.
+	 * @param array $analysis Résultat de analyze().
+	 * @return string
+	 */
+	public static function wing_svg( array $trim, array $analysis ) {
+		$w      = 760;
+		$h      = 340;
+		$cx     = $w / 2;
+		$half   = 345;   // Demi-envergure (px).
+		$top    = 40;    // Bord d'attaque au centre.
+		$chord  = 250;   // Corde centrale (px).
+		$sweep  = 34;    // Recul du bord d'attaque en bout d'aile.
+		$colors = self::colors();
+		$tol    = (float) CP_Settings::get( 'trim_tolerance' );
+		$both   = 'one' !== $trim['sides'];
+
+		// Position le long de la corde, par rangée.
+		$row_pos = array( 'A' => 0.13, 'B' => 0.36, 'C' => 0.57, 'D' => 0.76, 'F' => 0.95 );
+
+		// Forme en plan : corde « super-ellipse », bord d'attaque légèrement reculé aux extrémités.
+		$chord_at = static function ( $u ) use ( $chord ) {
+			return $chord * pow( max( 0, 1 - pow( abs( $u ), 2.6 ) ), 1 / 2.6 );
+		};
+		$le_at    = static function ( $u ) use ( $top, $sweep, $chord, $chord_at ) {
+			// Le bord d'attaque recule et la corde se réduit symétriquement autour de 40 % de corde.
+			return $top + $sweep * $u * $u + ( $chord - $chord_at( $u ) ) * 0.35;
+		};
+
+		$le = array();
+		$te = array();
+		for ( $i = -60; $i <= 60; $i++ ) {
+			$u    = $i / 60;
+			$x    = $cx + $u * $half;
+			$y    = $le_at( $u );
+			$le[] = round( $x, 1 ) . ',' . round( $y, 1 );
+			$te[] = round( $x, 1 ) . ',' . round( $y + $chord_at( $u ), 1 );
+		}
+		$outline = 'M' . implode( ' L', $le ) . ' L' . implode( ' L', array_reverse( $te ) ) . ' Z';
+
+		$svg  = '<svg class="cp-wing" viewBox="0 0 ' . $w . ' ' . $h . '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' . esc_attr__( 'Écarts de calage par groupe, aile vue de dessus', 'controle-parapente' ) . '">';
+		$svg .= '<defs><linearGradient id="cpWingFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbeee4"/><stop offset="1" stop-color="#f3e2d4"/></linearGradient></defs>';
+		$svg .= '<path d="' . esc_attr( $outline ) . '" fill="url(#cpWingFill)" stroke="#caa58c" stroke-width="1.5"/>';
+
+		// Caissons.
+		for ( $i = -24; $i <= 24; $i++ ) {
+			$u    = $i / 25;
+			$x    = round( $cx + $u * $half, 1 );
+			$y1   = $le_at( $u );
+			$svg .= '<line x1="' . $x . '" y1="' . round( $y1 + 1, 1 ) . '" x2="' . $x . '" y2="' . round( $y1 + $chord_at( $u ) - 1, 1 ) . '" stroke="#e6cdbb" stroke-width="0.8"/>';
+		}
+
+		// Axe central, lignes de rangées et libellés.
+		$svg .= '<line x1="' . $cx . '" y1="' . ( $top - 14 ) . '" x2="' . $cx . '" y2="' . ( $top + $chord + 16 ) . '" stroke="#b69580" stroke-dasharray="3 4" stroke-width="1"/>';
+		foreach ( $row_pos as $row => $pos ) {
+			if ( empty( $trim['structure'][ $row ] ) ) {
+				continue;
+			}
+			$y    = round( $le_at( 0 ) + $pos * $chord_at( 0 ), 1 );
+			$svg .= '<text x="' . $cx . '" y="' . ( $y + 4 ) . '" text-anchor="middle" class="cp-wing-row">' . esc_html( 'F' === $row ? __( 'Fr.', 'controle-parapente' ) : $row ) . '</text>';
+		}
+		$svg .= '<text x="' . $cx . '" y="20" text-anchor="middle" class="cp-wing-caption">' . esc_html__( 'Bord d\'attaque', 'controle-parapente' ) . '</text>';
+		$svg .= '<text x="' . $cx . '" y="' . ( $h - 10 ) . '" text-anchor="middle" class="cp-wing-caption">' . esc_html__( 'Bord de fuite', 'controle-parapente' ) . '</text>';
+		$svg .= '<text x="16" y="' . ( $h - 10 ) . '" class="cp-wing-caption">' . esc_html( $both ? __( 'Gauche', 'controle-parapente' ) : __( 'Mesure (un côté)', 'controle-parapente' ) ) . '</text>';
+		if ( $both ) {
+			$svg .= '<text x="' . ( $w - 16 ) . '" y="' . ( $h - 10 ) . '" text-anchor="end" class="cp-wing-caption">' . esc_html__( 'Droite', 'controle-parapente' ) . '</text>';
+		}
+
+		// Étiquettes de groupes.
+		$groups = array();
+		foreach ( $analysis['groups'] as $g ) {
+			$groups[ $g['row'] . '|' . $g['group'] . '|' . $g['side'] ] = $g;
+		}
+		foreach ( $trim['structure'] as $row => $row_groups ) {
+			if ( ! $row_groups || ! isset( $row_pos[ $row ] ) ) {
+				continue;
+			}
+			$total = 0;
+			foreach ( $row_groups as $grp ) {
+				$total += (int) $grp['count'];
+			}
+			if ( ! $total ) {
+				continue;
+			}
+			$done = 0;
+			foreach ( $row_groups as $gi => $grp ) {
+				$mid   = ( $done + $grp['count'] / 2 ) / $total;
+				$done += (int) $grp['count'];
+				$u     = 0.1 + 0.74 * $mid;  // Du centre vers le bout d'aile.
+				foreach ( array( -1, 1 ) as $dir ) {
+					$side = ( -1 === $dir || ! $both ) ? 'G' : 'D';
+					$key  = $row . '|' . ( $gi + 1 ) . '|' . $side;
+					if ( ! isset( $groups[ $key ] ) || null === $groups[ $key ]['result']['mean'] ) {
+						continue;
+					}
+					$g      = $groups[ $key ];
+					$value  = $g['result']['mean'];
+					$before = $analysis['has_final'] ? $g['initial']['mean'] : null;
+					$show_b = null !== $before && abs( $before - $value ) >= 1;
+					$ok     = abs( $value ) <= $tol;
+					$hex    = isset( $colors[ $grp['color'] ] ) ? $colors[ $grp['color'] ][1] : '#999';
+					$x      = round( $cx + $dir * $u * $half, 1 );
+					$y      = round( $le_at( $u ) + $row_pos[ $row ] * $chord_at( $u ), 1 );
+					$bw     = 50;
+					$bh     = $show_b ? 32 : 24;
+
+					$svg .= '<g class="cp-wing-tag ' . ( $ok ? 'is-ok' : 'is-bad' ) . '">';
+					$svg .= '<rect x="' . ( $x - $bw / 2 ) . '" y="' . ( $y - $bh / 2 ) . '" width="' . $bw . '" height="' . $bh . '" rx="9" fill="#fff" stroke="' . esc_attr( $hex ) . '" stroke-width="3"/>';
+					$svg .= '<text x="' . $x . '" y="' . ( $y + ( $show_b ? -1 : 5 ) ) . '" text-anchor="middle" class="cp-wing-val" fill="' . ( $ok ? '#3e7a45' : '#b4533c' ) . '">' . esc_html( self::signed( $value ) ) . '</text>';
+					if ( $show_b ) {
+						/* translators: %s: écart avant intervention */
+						$svg .= '<text x="' . $x . '" y="' . ( $y + 11 ) . '" text-anchor="middle" class="cp-wing-before">' . esc_html( sprintf( __( 'avant %s', 'controle-parapente' ), self::signed( $before ) ) ) . '</text>';
+					}
+					$svg .= '</g>';
+				}
+			}
+		}
+		$svg .= '</svg>';
+
+		// Légende des couleurs de groupes utilisées.
+		$used = array();
+		foreach ( $trim['structure'] as $row_groups ) {
+			foreach ( $row_groups as $grp ) {
+				$used[ $grp['color'] ] = true;
+			}
+		}
+		$legend = '<div class="cp-wing-colors">';
+		foreach ( array_keys( $used ) as $color ) {
+			if ( isset( $colors[ $color ] ) ) {
+				$legend .= '<span>' . self::swatch( $color ) . esc_html( $colors[ $color ][0] ) . '</span>';
+			}
+		}
+		$legend .= '</div>';
+
+		return '<figure class="cp-wing-figure">' . $svg . $legend . '</figure>';
 	}
 }

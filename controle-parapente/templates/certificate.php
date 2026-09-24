@@ -393,7 +393,7 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'G' ); ?>
 			</section>
 		<?php else : ?>
-			<?php CP_Trim::render_certificate( $d['trim'], $d['trim_adjusted'], $settings['title_geometric'] ); ?>
+			<?php CP_Trim::render_certificate( $d['trim'], $d['trim_adjusted'], $settings['title_geometric'], $is_admin ); ?>
 		<?php endif; ?>
 
 		<?php if ( $d['repairs'] ) : ?>

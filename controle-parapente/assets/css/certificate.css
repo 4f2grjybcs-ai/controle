@@ -303,3 +303,15 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 	.cp-summary-cards, .cp-metrics, .cp-instruments { grid-template-columns: 1fr; }
 	.cp-cursor-label { font-size: 9px; }
 }
+
+/* Calage : aile vue de dessus */
+.cp-wing-figure { margin: 8px 0 4px; }
+.cp-wing { display: block; width: 100%; height: auto; }
+.cp-wing-row { font: 700 13px var( --cp-serif ); fill: #8a6a57; }
+.cp-wing-caption { font: 600 10px var( --cp-sans ); fill: var( --cp-muted ); letter-spacing: 0.08em; text-transform: uppercase; }
+.cp-wing-val { font: 800 13px var( --cp-sans ); }
+.cp-wing-before { font: 600 8.5px var( --cp-sans ); fill: var( --cp-muted ); }
+.cp-wing-tag.is-bad rect { filter: drop-shadow( 0 0 3px rgba( 180, 83, 60, 0.45 ) ); }
+.cp-wing-colors { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 11px; color: var( --cp-muted ); }
+.cp-wing-legend { text-align: center; }
+.cp-workshop-only { margin-top: 18px; padding-top: 10px; border-top: 1px dashed var( --cp-line ); }
