@@ -308,3 +308,28 @@
 .cp-trim td.lvl-bad,
 .cp-repeat td.lvl-bad { color: #b32d2e; font-weight: 600; }
 .cp-repeat td.lvl-warn { color: #9a6700; }
+
+/* Type d'inspection, curseur d'état */
+.cp-tests { margin: 8px 0 12px; }
+.cp-tests td { vertical-align: middle; }
+.cp-tests td:nth-child( 2 ) { width: 70px; text-align: center; }
+.cp-warning {
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: #fcf0e3;
+	color: #8a4b22;
+	font-weight: 600;
+}
+.cp-state-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.cp-state-picker label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid #e0d1c1;
+	border-radius: 999px;
+	cursor: pointer;
+	background: #fff;
+}
+.cp-state-picker label:has( input:checked ) { background: #3d2f28; color: #fff; border-color: #3d2f28; }
+.cp-state-picker.is-disabled { opacity: 0.55; }

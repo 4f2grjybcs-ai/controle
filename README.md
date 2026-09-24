@@ -30,14 +30,34 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 - **E-mails** : nouvelle demande (atelier + client), changement de statut (optionnel, case à cocher), **rappel automatique** X jours avant l'échéance du prochain contrôle (un seul rappel par échéance, pas de rappel si la même aile a déjà un contrôle plus récent).
 - **Réglages** : coordonnées de l'atelier, n° d'agrément, préfixe des références, validité d'un contrôle (24 mois par défaut), délai de rappel, seuils de porosité, tolérance de calage, textes du formulaire et du certificat.
 
+## Normes : PMA et charte FFVL ParachecK®
+
+Le rapport suit la structure demandée par la charte FFVL ParachecK® (V3.01) et le PMA Standard « Periodical Inspection of Paragliders » (V 2024.12.1) :
+
+- identification de l'atelier : nom, responsable, n° de police d'assurance RC pro, mention « signataire ParachecK » ;
+- **type d'inspection** (révision périodique, intermédiaire, basique, mécanique, géométrique, visuelle/incident) : les tests non inclus apparaissent **« Non réalisé »**, avec la préconisation du constructeur en commentaire ;
+- **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf → Réforme), uniquement après une révision périodique complète ; aucun pourcentage d'usure ni durée de vie restante ;
+- **porosité en l/m²/min** (ou secondes) : chaque point avec sa position, minimum, maximum, moyenne, valeurs d'alerte et de réforme ;
+- **déchirure** (Bettsomètre, en g) et **résistance des suspentes** par étage (rupture en daN et seuil minimum) ;
+- **calage** : longueurs mesurées sous la tension indiquée (5 daN selon le PMA) ;
+- origine des seuils (constructeur → PMA → charte), modifiable pour chaque contrôle ;
+- instruments de mesure et dates d'étalonnage (alerte dans l'atelier si l'étalonnage a plus de 12 mois).
+
+> Les valeurs par défaut (seuils, listes, types d'inspection) sont une base de travail : vérifiez-les avec les textes officiels de la charte ParachecK et du standard PMA, et ajustez-les dans *Contrôles → Réglages*.
+
+## Réglages
+
+*Contrôles → Réglages* regroupe tout ce qui est modifiable, par onglets : **Atelier** (identité, assurance, logo, couleur), **Normes & seuils**, **Instruments**, **Textes du rapport** (titres, curseur d'état, mentions), **Listes** (types d'inspection, points visuels, points de mesure, prestations), **E-mails** (modèles avec variables `{client}`, `{reference}`, `{aile}`, `{lien}`…) et **Formulaire public**.
+
 ## Calage
 
-1. **Structure du suspentage** : pour chaque rangée A, B, C, D, indiquez le nombre de groupes puis le nombre de suspentes de chaque groupe (ex. A : 3 groupes → 4, 4, 2). Les **freins** sont une rangée à part. Les suspentes sont numérotées A1, A2… dans l'ordre des groupes.
+1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe. Les suspentes sont numérotées A1, A2… dans l'ordre des groupes.
 2. **Côtés** : gauche + droite, ou un seul côté.
 3. **Offset de mesure** (mm) : ajouté à toutes les mesures, 1ère et finale (correction du banc, maillons, tension…).
 4. **1ère mesure** : saisissez les cotes usine et les longueurs brutes lues sur le banc (Entrée = case suivante dans la colonne). Enregistrez ; cochez « 1ère mesure figée » pour ne plus pouvoir la modifier.
 5. Travaillez sur le suspentage, puis faites la **mesure finale** (le bouton « Copier la 1ère mesure » pré-remplit les cases non retouchées).
-6. Le **tableau des décalages par groupe** donne pour chaque groupe et chaque côté : écart moyen à la 1ère mesure, **correction suggérée**, écart moyen final, ajustement réellement réalisé, écart maximum et état (conforme / hors tolérance).
+6. **Résultat** : case **offset** et cases **élévateur** (A, B, C, D, freins, gauche/droite) avec boutons − / + ; « Proposer le réglage » calcule la valeur qui ramène l'écart moyen de chaque rangée à 0.
+7. Le **tableau des décalages par groupe** donne pour chaque groupe et chaque côté : écart moyen à la 1ère mesure, **correction suggérée**, écart moyen final, ajustement réellement réalisé, écart maximum et état (conforme / hors tolérance).
 
 Écart = mesure brute + offset − cote usine. Les deux tableaux (par groupe et par suspente) figurent sur la fiche imprimable.
 

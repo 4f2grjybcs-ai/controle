@@ -467,14 +467,15 @@ class CP_Atelier {
 					</div>
 					<div class="cp-panel" data-panel="mesures">
 						<?php
+						self::card( __( 'Type d\'inspection & normes', 'controle-parapente' ), array( 'CP_Admin', 'box_inspection' ), $post );
 						self::card( __( 'Porosité du tissu', 'controle-parapente' ), array( 'CP_Admin', 'box_porosity' ), $post );
-						self::card( __( 'Résistance tissu & suspentes', 'controle-parapente' ), array( 'CP_Admin', 'box_strength' ), $post );
+						self::card( __( 'Déchirure & résistance des suspentes', 'controle-parapente' ), array( 'CP_Admin', 'box_strength' ), $post );
 						self::card( __( 'Calage', 'controle-parapente' ), array( 'CP_Admin', 'box_trim' ), $post, 'cp-card--wide' );
-						self::card( __( 'Contrôle visuel', 'controle-parapente' ), array( 'CP_Admin', 'box_visual' ), $post );
+						self::card( CP_Settings::get( 'title_visual' ), array( 'CP_Admin', 'box_visual' ), $post );
 						?>
 					</div>
 					<div class="cp-panel" data-panel="conclusion">
-						<?php self::card( __( 'Travaux & conclusions', 'controle-parapente' ), array( 'CP_Admin', 'box_conclusion' ), $post ); ?>
+						<?php self::card( __( 'Conclusions', 'controle-parapente' ), array( 'CP_Admin', 'box_conclusion' ), $post ); ?>
 					</div>
 					<div class="cp-panel" data-panel="rapport">
 						<section class="cp-card">

@@ -515,7 +515,7 @@ class CP_Trim {
 	/* Rapport                                                             */
 	/* ------------------------------------------------------------------ */
 
-	public static function render_certificate( array $trim, $trim_adjusted ) {
+	public static function render_certificate( array $trim, $trim_adjusted, $title = null ) {
 		$trim     = self::normalize( $trim );
 		$analysis = self::analyze( $trim );
 		if ( ! $analysis['has_data'] ) {
@@ -530,11 +530,14 @@ class CP_Trim {
 			? array( 'initial' => __( '1ère mesure', 'controle-parapente' ), 'final' => __( 'Mesure finale', 'controle-parapente' ) )
 			: array( 'initial' => __( 'Mesure', 'controle-parapente' ) );
 		?>
-		<section>
-			<h2><?php esc_html_e( 'Calage', 'controle-parapente' ); ?></h2>
+		<section class="cp-inspection">
+			<h2><?php echo esc_html( null === $title ? __( 'Calage', 'controle-parapente' ) : $title ); ?></h2>
 			<p class="cp-small">
 				<?php
 				$info = array( sprintf( __( 'Tolérance : ± %s mm', 'controle-parapente' ), CP_Settings::get( 'trim_tolerance' ) ) );
+				if ( CP_Settings::get( 'trim_load' ) ) {
+					$info[] = sprintf( __( 'longueurs mesurées sous %s', 'controle-parapente' ), CP_Settings::get( 'trim_load' ) );
+				}
 				if ( 0.0 !== $analysis['offset'] ) {
 					$info[] = sprintf( __( 'offset de mesure : %s mm', 'controle-parapente' ), self::signed( $analysis['offset'] ) );
 				}

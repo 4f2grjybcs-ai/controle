@@ -50,8 +50,17 @@ class CP_Admin {
 			'cp-admin',
 			'cpAdmin',
 			array(
-				'porosityMin'    => (float) CP_Settings::get( 'porosity_min' ),
-				'porosityWarn'   => (float) CP_Settings::get( 'porosity_warn' ),
+				'porosityUnit'   => CP_Settings::get( 'porosity_unit' ),
+				'porosityAlert'  => (float) CP_Settings::get( 'porosity_alert' ),
+				'porosityReform' => (float) CP_Settings::get( 'porosity_reform' ),
+				'tearReform'     => (float) CP_Settings::get( 'tear_reform' ),
+				'tearGood'       => (float) CP_Settings::get( 'tear_good' ),
+				'inspectionTypes' => array_map(
+					static function ( $t ) {
+						return $t['tests'];
+					},
+					CP_Controle::inspection_types()
+				),
 				'trimTolerance'  => (float) CP_Settings::get( 'trim_tolerance' ),
 				'validityMonths' => (int) CP_Settings::get( 'validity_months' ),
 				'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
@@ -70,6 +79,7 @@ class CP_Admin {
 		add_meta_box( 'cp-pilot', __( 'Pilote / client', 'controle-parapente' ), array( __CLASS__, 'box_pilot' ), $pt, 'normal', 'high' );
 		add_meta_box( 'cp-equipment', __( 'Équipement', 'controle-parapente' ), array( __CLASS__, 'box_equipment' ), $pt, 'normal', 'high' );
 		add_meta_box( 'cp-request', __( 'Prestations demandées', 'controle-parapente' ), array( __CLASS__, 'box_request' ), $pt, 'normal', 'default' );
+		add_meta_box( 'cp-inspection', __( 'Type d\'inspection & normes', 'controle-parapente' ), array( __CLASS__, 'box_inspection' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-porosity', __( 'Porosité du tissu', 'controle-parapente' ), array( __CLASS__, 'box_porosity' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-strength', __( 'Résistance tissu & suspentes', 'controle-parapente' ), array( __CLASS__, 'box_strength' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-trim', __( 'Calage (longueurs de suspentage)', 'controle-parapente' ), array( __CLASS__, 'box_trim' ), $pt, 'normal', 'default' );
@@ -216,6 +226,8 @@ class CP_Admin {
 	 * @param string $extra   Libellé d'une colonne calculée (JS) ou ''.
 	 */
 	private static function repeatable( $key, $columns, $rows, $extra = '' ) {
+		// Chaque tableau a son propre conteneur (plusieurs tableaux peuvent partager une boîte).
+		echo '<div class="cp-repeat-wrap">';
 		printf( '<table class="widefat striped cp-repeat" data-key="%s"><thead><tr>', esc_attr( $key ) );
 		foreach ( $columns as $col ) {
 			printf( '<th>%s</th>', esc_html( $col[0] ) );
@@ -254,26 +266,31 @@ class CP_Admin {
 		$render_row( '__i__', array() );
 		echo '</template>';
 		printf( '<p><button type="button" class="button cp-add-row">%s</button></p>', esc_html__( '+ Ajouter une ligne', 'controle-parapente' ) );
+		echo '</div>';
 	}
 
 	public static function box_porosity( $post ) {
-		$d = self::data( $post );
+		$d    = self::data( $post );
+		$t    = CP_Controle::thresholds( $d );
+		$unit = CP_Controle::porosity_unit_label( $t['porosity_unit'] );
 		printf(
 			'<p class="description">%s</p>',
 			esc_html(
 				sprintf(
-					/* translators: 1: seuil non navigable, 2: seuil de vigilance. */
-					__( 'Temps mesuré au porosimètre (secondes). Non navigable sous %1$s s, vigilance sous %2$s s.', 'controle-parapente' ),
-					CP_Settings::get( 'porosity_min' ),
-					CP_Settings::get( 'porosity_warn' )
+					/* translators: 1: unité, 2: valeur d'alerte, 3: valeur de réforme. */
+					__( 'Mesures au porosimètre en %1$s : au moins 6 points sur l\'extrados répartis sur l\'envergure (20-30 cm derrière le bord d\'attaque) et 1 point sur l\'intrados. Alerte : %2$s — réforme : %3$s (modifiables dans « Type d\'inspection & normes »).', 'controle-parapente' ),
+					$unit,
+					$t['porosity_alert'],
+					$t['porosity_reform']
 				)
 			)
 		);
 		self::repeatable(
 			'porosity',
 			array(
-				'zone'  => array( __( 'Zone / point de mesure', 'controle-parapente' ), 'text' ),
-				'value' => array( __( 'Temps (s)', 'controle-parapente' ), 'number', 'step="0.1" min="0"' ),
+				'zone'  => array( __( 'Position du point de mesure', 'controle-parapente' ), 'text' ),
+				/* translators: %s: unité */
+				'value' => array( sprintf( __( 'Mesure (%s)', 'controle-parapente' ), $unit ), 'number', 'step="0.1" min="0"' ),
 			),
 			$d['porosity'],
 			__( 'Évaluation', 'controle-parapente' )
@@ -282,19 +299,26 @@ class CP_Admin {
 
 	public static function box_strength( $post ) {
 		$d = self::data( $post );
-		echo '<h4>' . esc_html__( 'Résistance du tissu (Bettsomètre)', 'controle-parapente' ) . '</h4><div class="cp-grid">';
-		self::field( 'fabric_strength', __( 'Valeur / remarque (ex. 600 g, 5 mm)', 'controle-parapente' ), $d['fabric_strength'] );
-		self::select(
-			'fabric_result',
-			__( 'Résultat', 'controle-parapente' ),
-			$d['fabric_result'],
-			array(
-				''    => '—',
-				'ok'  => __( 'Conforme', 'controle-parapente' ),
-				'nok' => __( 'Non conforme', 'controle-parapente' ),
-			)
+		$t = CP_Controle::thresholds( $d );
+		echo '<h4>' . esc_html__( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ) . '</h4>';
+		printf(
+			'<p class="description">%s</p>',
+			esc_html( sprintf( /* translators: 1: réforme, 2: bonne valeur */ __( 'Force de déchirure en grammes. Réforme sous %1$s g, à surveiller sous %2$s g.', 'controle-parapente' ), $t['tear_reform'], $t['tear_good'] ) )
 		);
-		echo '</div><h4>' . esc_html__( 'Résistance des suspentes (test de rupture)', 'controle-parapente' ) . '</h4>';
+		self::repeatable(
+			'tear',
+			array(
+				'zone'  => array( __( 'Position du point de mesure', 'controle-parapente' ), 'text' ),
+				'value' => array( __( 'Force (g)', 'controle-parapente' ), 'number', 'step="10" min="0"' ),
+			),
+			$d['tear'],
+			__( 'Évaluation', 'controle-parapente' )
+		);
+		if ( $d['fabric_strength'] ) {
+			printf( '<p class="description">%s %s</p>', esc_html__( 'Ancienne saisie :', 'controle-parapente' ), esc_html( $d['fabric_strength'] ) );
+		}
+		echo '<h4>' . esc_html__( 'Résistance des suspentes (test de rupture)', 'controle-parapente' ) . '</h4>';
+		echo '<p class="description">' . esc_html__( 'Pour chaque étage testé : rupture mesurée en daN et seuil minimum (constructeur, sinon PMA).', 'controle-parapente' ) . '</p>';
 		self::repeatable(
 			'lines',
 			array(
@@ -331,10 +355,83 @@ class CP_Admin {
 		printf( '<p><button type="button" class="button cp-all-ok">%s</button></p>', esc_html__( 'Tout marquer « Bon état » (champs vides)', 'controle-parapente' ) );
 	}
 
+	public static function box_inspection( $post ) {
+		$d       = self::data( $post );
+		$types   = CP_Controle::inspection_types();
+		$done    = CP_Controle::tests_done( $d );
+		$options = array();
+		foreach ( $types as $key => $type ) {
+			$options[ $key ] = $type['label'];
+		}
+		echo '<div class="cp-grid">';
+		self::select( 'inspection_type', __( 'Type d\'inspection', 'controle-parapente' ), $d['inspection_type'], $options );
+		self::select( 'threshold_source', __( 'Origine des seuils', 'controle-parapente' ), $d['threshold_source'] ? $d['threshold_source'] : CP_Settings::get( 'threshold_source' ), CP_Settings::threshold_sources() );
+		echo '</div>';
+
+		echo '<table class="widefat cp-tests"><thead><tr><th>' . esc_html__( 'Test', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Réalisé', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Si non réalisé : préconisation du constructeur / commentaire', 'controle-parapente' ) . '</th></tr></thead><tbody>';
+		foreach ( CP_Controle::tests() as $test => $label ) {
+			printf(
+				'<tr><td>%1$s</td><td><input type="checkbox" class="cp-test-done" data-test="%2$s" name="cp[tests_done][%2$s]" value="1" %3$s /></td><td><input type="text" class="widefat" name="cp[not_done_notes][%2$s]" value="%4$s" /></td></tr>',
+				esc_html( $label ),
+				esc_attr( $test ),
+				checked( in_array( $test, $done, true ), true, false ),
+				esc_attr( isset( $d['not_done_notes'][ $test ] ) ? $d['not_done_notes'][ $test ] : '' )
+			);
+		}
+		echo '</tbody></table>';
+
+		$unit = CP_Controle::porosity_unit_label();
+		echo '<h4>' . esc_html__( 'Seuils de ce contrôle', 'controle-parapente' ) . '</h4>';
+		echo '<p class="description">' . esc_html__( 'Laisser vide pour utiliser les valeurs des réglages. Ordre de priorité : constructeur, PMA, charte.', 'controle-parapente' ) . '</p><div class="cp-grid">';
+		/* translators: %s: unité */
+		self::field( 'por_alert', sprintf( __( 'Porosité — alerte (%s)', 'controle-parapente' ), $unit ), $d['por_alert'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_alert' ) ) . '"' );
+		/* translators: %s: unité */
+		self::field( 'por_reform', sprintf( __( 'Porosité — réforme (%s)', 'controle-parapente' ), $unit ), $d['por_reform'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_reform' ) ) . '"' );
+		self::field( 'tear_reform', __( 'Déchirure — réforme (g)', 'controle-parapente' ), $d['tear_reform'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'tear_reform' ) ) . '"' );
+		echo '</div>';
+
+		$expired = array_filter(
+			CP_Settings::instruments(),
+			static function ( $i ) {
+				return $i['expired'];
+			}
+		);
+		if ( $expired ) {
+			echo '<p class="cp-warning">⚠ ' . esc_html(
+				sprintf(
+					/* translators: %s: liste d'instruments */
+					__( 'Étalonnage à renouveler : %s (voir Réglages → Instruments).', 'controle-parapente' ),
+					implode( ', ', wp_list_pluck( $expired, 'label' ) )
+				)
+			) . '</p>';
+		}
+	}
+
 	public static function box_conclusion( $post ) {
 		$d = self::data( $post );
+		echo '<h4>' . esc_html__( 'Interprétation de chaque inspection (sur le rapport)', 'controle-parapente' ) . '</h4>';
+		self::textarea( 'interp_visual', CP_Settings::get( 'title_visual' ), $d['interp_visual'], 2 );
+		self::textarea( 'interp_mechanical', CP_Settings::get( 'title_mechanical' ), $d['interp_mechanical'], 2 );
+		self::textarea( 'interp_geometric', CP_Settings::get( 'title_geometric' ), $d['interp_geometric'], 2 );
+
+		echo '<h4>' . esc_html( CP_Settings::get( 'state_title' ) ) . '</h4>';
+		$allowed = CP_Controle::state_allowed( $d );
+		echo '<div class="cp-state-picker' . ( $allowed ? '' : ' is-disabled' ) . '">';
+		foreach ( CP_Controle::state_labels() as $i => $label ) {
+			printf(
+				'<label><input type="radio" name="cp[global_state]" value="%1$d" %2$s /> <span>%3$s</span></label>',
+				(int) $i,
+				checked( (string) $i, $d['global_state'], false ),
+				esc_html( $label )
+			);
+		}
+		printf( '<label><input type="radio" name="cp[global_state]" value="" %s /> <span>%s</span></label>', checked( '', $d['global_state'], false ), esc_html__( 'Non évalué', 'controle-parapente' ) );
+		echo '</div>';
+		echo '<p class="description">' . esc_html( $allowed ? CP_Settings::get( 'state_help' ) : CP_Settings::get( 'state_unavailable' ) ) . '</p>';
+
+		echo '<h4>' . esc_html__( 'Travaux et observations', 'controle-parapente' ) . '</h4>';
 		self::textarea( 'repairs', __( 'Réparations / pièces remplacées', 'controle-parapente' ), $d['repairs'] );
-		self::textarea( 'comments', __( 'Observations (visibles par le client et sur le certificat)', 'controle-parapente' ), $d['comments'], 4 );
+		self::textarea( 'comments', __( 'Observations (visibles par le client, « mot de l\'atelier »)', 'controle-parapente' ), $d['comments'], 4 );
 		self::textarea( 'internal_notes', __( 'Notes internes (non communiquées)', 'controle-parapente' ), $d['internal_notes'] );
 	}
 

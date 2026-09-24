@@ -5,8 +5,12 @@
 	// wp_localize_script transmet les nombres sous forme de chaînes.
 	var raw = window.cpAdmin || {};
 	var cfg = {
-		porosityMin: parseFloat( raw.porosityMin ) || 0,
-		porosityWarn: parseFloat( raw.porosityWarn ) || 0,
+		porosityUnit: raw.porosityUnit || 'lm2min',
+		porosityAlert: parseFloat( raw.porosityAlert ) || 0,
+		porosityReform: parseFloat( raw.porosityReform ) || 0,
+		tearReform: parseFloat( raw.tearReform ) || 0,
+		tearGood: parseFloat( raw.tearGood ) || 0,
+		inspectionTypes: raw.inspectionTypes || {},
 		validityMonths: parseInt( raw.validityMonths, 10 ) || 0,
 		ajaxUrl: raw.ajaxUrl,
 		searchNonce: raw.searchNonce
@@ -34,19 +38,43 @@
 		cell.className = 'cp-computed' + ( level ? ' lvl-' + level : '' );
 	}
 
+	// Seuils de la fiche (cases « Type d'inspection & normes »), sinon réglages.
+	function threshold( id, fallback ) {
+		var el = document.getElementById( id );
+		var v = el ? num( el.value ) : null;
+		return v === null ? fallback : v;
+	}
+
 	var evaluators = {
 		porosity: function ( row ) {
 			var v = field( row, 'value' );
 			if ( v === null ) {
 				return setComputed( row, '', '' );
 			}
-			if ( v < cfg.porosityMin ) {
-				return setComputed( row, 'Non conforme', 'bad' );
+			var alert = threshold( 'cp-por_alert', cfg.porosityAlert );
+			var reform = threshold( 'cp-por_reform', cfg.porosityReform );
+			// En l/m²/min, une valeur haute est mauvaise ; en secondes, une valeur basse.
+			var seconds = cfg.porosityUnit === 's';
+			var bad = seconds ? v <= reform : v >= reform;
+			var warn = seconds ? v <= alert : v >= alert;
+			if ( bad ) {
+				return setComputed( row, 'Réforme', 'bad' );
 			}
-			if ( v < cfg.porosityWarn ) {
-				return setComputed( row, 'À surveiller', 'warn' );
+			if ( warn ) {
+				return setComputed( row, 'Alerte', 'warn' );
 			}
 			setComputed( row, 'Conforme', 'ok' );
+		},
+		tear: function ( row ) {
+			var v = field( row, 'value' );
+			if ( v === null ) {
+				return setComputed( row, '', '' );
+			}
+			var reform = threshold( 'cp-tear_reform', cfg.tearReform );
+			if ( v < reform ) {
+				return setComputed( row, 'Réforme', 'bad' );
+			}
+			setComputed( row, v < cfg.tearGood ? 'À surveiller' : 'Conforme', v < cfg.tearGood ? 'warn' : 'ok' );
 		},
 		lines: function ( row ) {
 			var m = field( row, 'measured' );
@@ -67,7 +95,7 @@
 	}
 
 	document.querySelectorAll( '.cp-repeat' ).forEach( function ( table ) {
-		var box = table.parentNode;
+		var box = table.closest( '.cp-repeat-wrap' ) || table.parentNode;
 		var template = box.querySelector( '.cp-row-template' );
 		var add = box.querySelector( '.cp-add-row' );
 		var counter = table.querySelectorAll( 'tbody tr' ).length;
@@ -95,6 +123,27 @@
 
 		evaluate( table );
 	} );
+
+	// Seuils modifiés : réévaluer les tableaux.
+	[ 'cp-por_alert', 'cp-por_reform', 'cp-tear_reform' ].forEach( function ( id ) {
+		var el = document.getElementById( id );
+		if ( el ) {
+			el.addEventListener( 'input', function () {
+				document.querySelectorAll( '.cp-repeat' ).forEach( evaluate );
+			} );
+		}
+	} );
+
+	// Type d'inspection : coche les tests inclus.
+	var typeSelect = document.getElementById( 'cp-inspection_type' );
+	if ( typeSelect ) {
+		typeSelect.addEventListener( 'change', function () {
+			var tests = cfg.inspectionTypes[ typeSelect.value ] || [];
+			document.querySelectorAll( '.cp-test-done' ).forEach( function ( box ) {
+				box.checked = tests.indexOf( box.getAttribute( 'data-test' ) ) !== -1;
+			} );
+		} );
+	}
 
 	// Contrôle visuel : tout marquer « Bon état ».
 	var allOk = document.querySelector( '.cp-all-ok' );

@@ -66,12 +66,7 @@ class CP_Controle {
 	}
 
 	public static function services() {
-		return array(
-			'controle' => __( 'Contrôle complet (révision)', 'controle-parapente' ),
-			'calage'   => __( 'Recalage des suspentes', 'controle-parapente' ),
-			'repar'    => __( 'Réparation', 'controle-parapente' ),
-			'secours'  => __( 'Repliage parachute de secours', 'controle-parapente' ),
-		);
+		return CP_Settings::keyed_list( 'services' );
 	}
 
 	public static function drop_off_modes() {
@@ -82,23 +77,95 @@ class CP_Controle {
 	}
 
 	/**
-	 * Points de contrôle visuel.
+	 * Points de l'inspection visuelle (modifiables dans les réglages).
 	 */
 	public static function visual_items() {
+		return CP_Settings::keyed_list( 'visual_items' );
+	}
+
+	/**
+	 * Tests d'une inspection, regroupés en trois inspections (visuelle, mécanique, géométrique).
+	 */
+	public static function tests() {
 		return array(
-			'extrados'    => __( 'Tissu extrados (déchirures, usure, UV)', 'controle-parapente' ),
-			'intrados'    => __( 'Tissu intrados', 'controle-parapente' ),
-			'bord'        => __( 'Bord d\'attaque, joncs, entrées d\'air', 'controle-parapente' ),
-			'cloisons'    => __( 'Cloisons, diagonales, renforts', 'controle-parapente' ),
-			'coutures'    => __( 'Coutures', 'controle-parapente' ),
-			'ancrages'    => __( 'Points d\'ancrage des suspentes', 'controle-parapente' ),
-			'suspentes'   => __( 'Suspentes (gaine, nœuds, abrasion)', 'controle-parapente' ),
-			'elevateurs'  => __( 'Élévateurs (sangles, coutures, marquage)', 'controle-parapente' ),
-			'maillons'    => __( 'Maillons / connecteurs', 'controle-parapente' ),
-			'accelerateur' => __( 'Système d\'accélérateur (poulies, drisses)', 'controle-parapente' ),
-			'freins'      => __( 'Poignées et drisses de frein', 'controle-parapente' ),
-			'etiquette'   => __( 'Étiquette et marquage d\'homologation', 'controle-parapente' ),
+			'V' => __( 'Inspection visuelle', 'controle-parapente' ),
+			'P' => __( 'Porosité du tissu', 'controle-parapente' ),
+			'T' => __( 'Résistance à la déchirure', 'controle-parapente' ),
+			'L' => __( 'Résistance des suspentes', 'controle-parapente' ),
+			'G' => __( 'Calage (géométrie)', 'controle-parapente' ),
 		);
+	}
+
+	/**
+	 * Types d'inspection : [ 'cle' => [ 'label' => …, 'tests' => [ 'V', 'P', … ], 'state' => bool ] ].
+	 */
+	public static function inspection_types() {
+		$types = array();
+		foreach ( CP_Settings::lines( 'inspection_types' ) as $line ) {
+			$parts = array_map( 'trim', explode( '|', $line, 2 ) );
+			$slug  = sanitize_title( $parts[0] );
+			if ( '' === $slug ) {
+				continue;
+			}
+			$flags          = isset( $parts[1] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', $parts[1] ) ) : 'VPTLG';
+			$types[ $slug ] = array(
+				'label' => $parts[0],
+				'tests' => array_values( array_intersect( array_keys( self::tests() ), str_split( $flags ) ) ),
+				'state' => false !== strpos( $flags, 'E' ),
+			);
+		}
+		return $types;
+	}
+
+	/**
+	 * Tests réalisés pour ce contrôle.
+	 */
+	public static function tests_done( array $d ) {
+		if ( is_array( $d['tests_done'] ) && $d['tests_done'] ) {
+			return array_keys( array_filter( $d['tests_done'] ) );
+		}
+		$types = self::inspection_types();
+		return isset( $types[ $d['inspection_type'] ] ) ? $types[ $d['inspection_type'] ]['tests'] : array_keys( self::tests() );
+	}
+
+	/**
+	 * L'état global n'est évaluable qu'après un type d'inspection qui le permet, tous tests réalisés.
+	 */
+	public static function state_allowed( array $d ) {
+		$types = self::inspection_types();
+		if ( ! isset( $types[ $d['inspection_type'] ] ) || ! $types[ $d['inspection_type'] ]['state'] ) {
+			return false;
+		}
+		return ! array_diff( array_keys( self::tests() ), self::tests_done( $d ) );
+	}
+
+	public static function state_labels() {
+		return CP_Settings::lines( 'state_labels' );
+	}
+
+	/**
+	 * Seuils applicables à ce contrôle (valeurs saisies sur la fiche, sinon réglages).
+	 */
+	public static function thresholds( array $d ) {
+		$pick = static function ( $value, $key ) {
+			return '' !== (string) $value ? (float) $value : (float) CP_Settings::get( $key );
+		};
+		$sources = CP_Settings::threshold_sources();
+		$source  = isset( $sources[ $d['threshold_source'] ] ) ? $d['threshold_source'] : CP_Settings::get( 'threshold_source' );
+		return array(
+			'source'          => $source,
+			'source_label'    => isset( $sources[ $source ] ) ? $sources[ $source ] : '',
+			'porosity_unit'   => CP_Settings::get( 'porosity_unit' ),
+			'porosity_alert'  => $pick( $d['por_alert'], 'porosity_alert' ),
+			'porosity_reform' => $pick( $d['por_reform'], 'porosity_reform' ),
+			'tear_reform'     => $pick( $d['tear_reform'], 'tear_reform' ),
+			'tear_good'       => (float) CP_Settings::get( 'tear_good' ),
+		);
+	}
+
+	public static function porosity_unit_label( $unit = null ) {
+		$unit = null === $unit ? CP_Settings::get( 'porosity_unit' ) : $unit;
+		return 's' === $unit ? 's' : 'l/m²/min';
 	}
 
 	public static function visual_states() {
@@ -112,25 +179,24 @@ class CP_Controle {
 		);
 	}
 
+	private static function rows_from( $key, $field, array $empty ) {
+		$rows = array();
+		foreach ( CP_Settings::lines( $key ) as $label ) {
+			$rows[] = array_merge( array( $field => $label ), $empty );
+		}
+		return $rows;
+	}
+
 	public static function default_porosity_rows() {
-		return array(
-			array( 'zone' => __( 'Extrados — bord d\'attaque centre', 'controle-parapente' ), 'value' => '' ),
-			array( 'zone' => __( 'Extrados — bord d\'attaque gauche', 'controle-parapente' ), 'value' => '' ),
-			array( 'zone' => __( 'Extrados — bord d\'attaque droit', 'controle-parapente' ), 'value' => '' ),
-			array( 'zone' => __( 'Extrados — milieu de corde centre', 'controle-parapente' ), 'value' => '' ),
-			array( 'zone' => __( 'Intrados — bord d\'attaque centre', 'controle-parapente' ), 'value' => '' ),
-			array( 'zone' => __( 'Intrados — milieu de corde centre', 'controle-parapente' ), 'value' => '' ),
-		);
+		return self::rows_from( 'porosity_points', 'zone', array( 'value' => '' ) );
+	}
+
+	public static function default_tear_rows() {
+		return self::rows_from( 'tear_points', 'zone', array( 'value' => '' ) );
 	}
 
 	public static function default_line_rows() {
-		return array(
-			array( 'line' => 'A (basse, centrale)', 'measured' => '', 'minimum' => '' ),
-			array( 'line' => 'B (basse, centrale)', 'measured' => '', 'minimum' => '' ),
-			array( 'line' => 'C (basse, centrale)', 'measured' => '', 'minimum' => '' ),
-			array( 'line' => 'A (haute)', 'measured' => '', 'minimum' => '' ),
-			array( 'line' => 'Frein (basse)', 'measured' => '', 'minimum' => '' ),
-		);
+		return self::rows_from( 'line_points', 'line', array( 'measured' => '', 'minimum' => '' ) );
 	}
 
 	/**
@@ -156,13 +222,21 @@ class CP_Controle {
 			'flight_hours'      => '',
 			'last_check'        => '',
 			// Demande.
-			'services'          => array( 'controle' ),
+			'services'          => array_slice( array_keys( self::services() ), 0, 1 ),
 			'drop_off'          => 'atelier',
 			'client_notes'      => '',
 			// Contrôle.
 			'check_date'        => '',
 			'technician'        => '',
+			'inspection_type'   => (string) key( self::inspection_types() ),
+			'tests_done'        => array(),
+			'not_done_notes'    => array(),
+			'threshold_source'  => '',
+			'por_alert'         => '',
+			'por_reform'        => '',
+			'tear_reform'       => '',
 			'porosity'          => self::default_porosity_rows(),
+			'tear'              => self::default_tear_rows(),
 			'fabric_strength'   => '',
 			'fabric_result'     => '',
 			'lines'             => self::default_line_rows(),
@@ -170,6 +244,10 @@ class CP_Controle {
 			'trim_adjusted'     => '',
 			'visual'            => array(),
 			'repairs'           => '',
+			'interp_visual'     => '',
+			'interp_mechanical' => '',
+			'interp_geometric'  => '',
+			'global_state'      => '',
 			'comments'          => '',
 			'internal_notes'    => '',
 		);
@@ -267,6 +345,29 @@ class CP_Controle {
 		$d['technician']     = isset( $raw['technician'] ) ? sanitize_text_field( $raw['technician'] ) : '';
 		$d['fabric_strength'] = isset( $raw['fabric_strength'] ) ? sanitize_text_field( $raw['fabric_strength'] ) : '';
 		$d['fabric_result']  = self::sanitize_choice( $raw, 'fabric_result', array( '' => '', 'ok' => '', 'nok' => '' ), '' );
+
+		// Type d'inspection, tests réalisés, seuils.
+		$d['inspection_type']  = self::sanitize_choice( $raw, 'inspection_type', self::inspection_types(), (string) key( self::inspection_types() ) );
+		$d['tests_done']       = array();
+		$d['not_done_notes']   = array();
+		foreach ( array_keys( self::tests() ) as $test ) {
+			$d['tests_done'][ $test ] = ! empty( $raw['tests_done'][ $test ] ) ? '1' : '';
+			if ( ! empty( $raw['not_done_notes'][ $test ] ) ) {
+				$d['not_done_notes'][ $test ] = sanitize_text_field( $raw['not_done_notes'][ $test ] );
+			}
+		}
+		if ( ! array_filter( $d['tests_done'] ) ) {
+			$d['tests_done'] = array();
+		}
+		$d['threshold_source'] = self::sanitize_choice( $raw, 'threshold_source', CP_Settings::threshold_sources(), '' );
+		foreach ( array( 'por_alert', 'por_reform', 'tear_reform' ) as $key ) {
+			$value     = isset( $raw[ $key ] ) ? str_replace( ',', '.', trim( (string) $raw[ $key ] ) ) : '';
+			$d[ $key ] = is_numeric( $value ) ? (string) ( 0 + $value ) : '';
+		}
+		foreach ( array( 'interp_visual', 'interp_mechanical', 'interp_geometric' ) as $key ) {
+			$d[ $key ] = isset( $raw[ $key ] ) ? sanitize_textarea_field( $raw[ $key ] ) : '';
+		}
+		$d['global_state'] = isset( $raw['global_state'] ) && '' !== $raw['global_state'] && isset( self::state_labels()[ (int) $raw['global_state'] ] ) ? (string) (int) $raw['global_state'] : '';
 		$d['trim_adjusted']  = ! empty( $raw['trim_adjusted'] ) ? '1' : '';
 		$d['repairs']        = isset( $raw['repairs'] ) ? sanitize_textarea_field( $raw['repairs'] ) : '';
 		$d['comments']       = isset( $raw['comments'] ) ? sanitize_textarea_field( $raw['comments'] ) : '';
@@ -275,6 +376,7 @@ class CP_Controle {
 		$d['verdict']        = self::sanitize_choice( $raw, 'verdict', self::verdicts(), '' );
 
 		$d['porosity'] = self::sanitize_rows( $raw, 'porosity', array( 'zone' => 'text', 'value' => 'number' ) );
+		$d['tear']     = self::sanitize_rows( $raw, 'tear', array( 'zone' => 'text', 'value' => 'number' ) );
 		$d['lines']    = self::sanitize_rows( $raw, 'lines', array( 'line' => 'text', 'measured' => 'number', 'minimum' => 'number' ) );
 		$d['trim']     = CP_Trim::sanitize( isset( $raw['trim'] ) ? $raw['trim'] : array() );
 
@@ -366,22 +468,50 @@ class CP_Controle {
 	}
 
 	/**
-	 * Évaluation d'une mesure de porosité : ok / warn / bad / ''.
+	 * Évaluation d'une mesure de porosité : ok / warn (alerte) / bad (réforme) / ''.
+	 * En l/m²/min, plus la valeur est haute, plus le tissu est poreux ; en secondes, c'est l'inverse.
 	 *
-	 * @param string $value Temps en secondes.
+	 * @param string $value Mesure.
+	 * @param array  $t     Seuils (CP_Controle::thresholds()).
 	 */
-	public static function porosity_level( $value ) {
+	public static function porosity_level( $value, array $t ) {
 		if ( '' === $value || ! is_numeric( $value ) ) {
 			return '';
 		}
 		$value = (float) $value;
-		if ( $value < (float) CP_Settings::get( 'porosity_min' ) ) {
-			return 'bad';
+		if ( 's' === $t['porosity_unit'] ) {
+			return $value <= $t['porosity_reform'] ? 'bad' : ( $value <= $t['porosity_alert'] ? 'warn' : 'ok' );
 		}
-		if ( $value < (float) CP_Settings::get( 'porosity_warn' ) ) {
-			return 'warn';
+		return $value >= $t['porosity_reform'] ? 'bad' : ( $value >= $t['porosity_alert'] ? 'warn' : 'ok' );
+	}
+
+	public static function tear_level( $value, array $t ) {
+		if ( '' === $value || ! is_numeric( $value ) ) {
+			return '';
 		}
-		return 'ok';
+		$value = (float) $value;
+		return $value < $t['tear_reform'] ? 'bad' : ( $value < $t['tear_good'] ? 'warn' : 'ok' );
+	}
+
+	/**
+	 * Statistiques simples d'une série de mesures : min, max, moyenne.
+	 */
+	public static function stats( array $rows, $field = 'value' ) {
+		$values = array();
+		foreach ( $rows as $row ) {
+			if ( isset( $row[ $field ] ) && is_numeric( $row[ $field ] ) ) {
+				$values[] = (float) $row[ $field ];
+			}
+		}
+		if ( ! $values ) {
+			return null;
+		}
+		return array(
+			'min'  => min( $values ),
+			'max'  => max( $values ),
+			'mean' => array_sum( $values ) / count( $values ),
+			'n'    => count( $values ),
+		);
 	}
 
 	public static function line_level( $measured, $minimum ) {

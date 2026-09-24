@@ -145,11 +145,7 @@ class CP_Shortcodes {
 		if ( ! empty( $_GET['cp_envoye'] ) ) {
 			$reference = sanitize_text_field( wp_unslash( $_GET['cp_envoye'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="cp-notice cp-notice--success"><p>';
-			printf(
-				/* translators: %s: référence. */
-				esc_html__( 'Merci ! Votre demande a bien été enregistrée sous la référence %s. Un e-mail de confirmation vient de vous être envoyé.', 'controle-parapente' ),
-				'<strong>' . esc_html( $reference ) . '</strong>'
-			);
+			echo wp_kses( str_replace( '{reference}', '<strong>' . esc_html( $reference ) . '</strong>', esc_html( CP_Settings::get( 'form_success' ) ) ), array( 'strong' => array() ) );
 			echo '</p></div>';
 			return ob_get_clean();
 		}
@@ -167,7 +163,7 @@ class CP_Shortcodes {
 			echo '<div class="cp-intro">' . wp_kses_post( wpautop( $intro ) ) . '</div>';
 		}
 
-		$services = self::$values ? (array) self::value( 'services' ) : array( 'controle' );
+		$services = self::$values ? (array) self::value( 'services' ) : array_slice( array_keys( CP_Controle::services() ), 0, 1 );
 		?>
 		<form class="cp-form" method="post" action="">
 			<?php wp_nonce_field( self::NONCE, 'cp_nonce' ); ?>
@@ -224,7 +220,7 @@ class CP_Shortcodes {
 			<p class="cp-form__check">
 				<label>
 					<input type="checkbox" name="cp_consent" value="1" required />
-					<?php esc_html_e( 'J\'accepte que mes données soient utilisées pour traiter ma demande et me rappeler l\'échéance du prochain contrôle.', 'controle-parapente' ); ?>
+					<?php echo esc_html( CP_Settings::get( 'form_consent' ) ); ?>
 				</label>
 			</p>
 

@@ -49,6 +49,39 @@ class CP_Emails {
 		return implode( "\n", $lines );
 	}
 
+	/**
+	 * Variables disponibles dans les modèles d'e-mails (Réglages → E-mails).
+	 */
+	public static function vars( $post_id, array $d ) {
+		$statuses = CP_Controle::statuses();
+		$verdicts = CP_Controle::verdicts();
+		return array(
+			'client'            => $d['pilot_name'],
+			'reference'         => $d['reference'],
+			'aile'              => CP_Controle::equipment_label( $d ),
+			'serie'             => $d['serial'],
+			'statut'            => $statuses[ $d['status'] ] ?? '',
+			'resultat'          => $d['verdict'] ? $verdicts[ $d['verdict'] ] : '—',
+			'prochain_controle' => CP_Controle::format_date( $d['next_date'] ),
+			'lien'              => CP_Controle::has_certificate( $d['status'] ) ? CP_Controle::public_certificate_url( $post_id ) : '',
+			'atelier'           => CP_Settings::get( 'workshop_name' ),
+			'telephone'         => CP_Settings::get( 'workshop_phone' ),
+		);
+	}
+
+	/**
+	 * Envoie au client l'e-mail correspondant à un modèle (mail_xxx_subject / mail_xxx_body).
+	 */
+	private static function send_template( $post_id, $template, $extra = '' ) {
+		$d    = CP_Controle::get( $post_id );
+		$vars = self::vars( $post_id, $d );
+		$body = CP_Settings::tpl( 'mail_' . $template . '_body', $vars );
+		if ( $extra ) {
+			$body .= "\n\n" . $extra;
+		}
+		return self::send( $d['email'], CP_Settings::tpl( 'mail_' . $template . '_subject', $vars ), $body );
+	}
+
 	public static function new_request( $post_id ) {
 		$d        = CP_Controle::get( $post_id );
 		$services = array_intersect_key( CP_Controle::services(), array_flip( (array) $d['services'] ) );
@@ -73,49 +106,34 @@ class CP_Emails {
 		);
 
 		// Client.
-		$body  = sprintf( __( 'Bonjour %s,', 'controle-parapente' ), $d['pilot_name'] ) . "\n\n";
-		$body .= __( 'Nous avons bien reçu votre demande de contrôle. Conservez votre référence : elle vous permet de suivre l\'avancement sur notre site.', 'controle-parapente' ) . "\n\n";
-		$body .= self::summary( $d ) . "\n";
-		if ( 'atelier' === $d['drop_off'] && CP_Settings::get( 'workshop_address' ) ) {
-			$body .= "\n" . __( 'Adresse de dépôt :', 'controle-parapente' ) . "\n" . CP_Settings::get( 'workshop_address' ) . "\n";
-		} elseif ( 'poste' === $d['drop_off'] && CP_Settings::get( 'workshop_address' ) ) {
-			$body .= "\n" . __( 'Adresse d\'envoi (indiquez la référence dans le colis) :', 'controle-parapente' ) . "\n" . CP_Settings::get( 'workshop_address' ) . "\n";
-		}
+		$extra = self::summary( $d );
+		if ( CP_Settings::get( 'workshop_address' ) ) {
+			$extra .= "
 
-		self::send(
-			$d['email'],
-			sprintf( __( 'Votre demande de contrôle %s', 'controle-parapente' ), $d['reference'] ),
-			$body
-		);
+" . ( 'poste' === $d['drop_off'] ? __( 'Adresse d\'envoi (indiquez la référence dans le colis) :', 'controle-parapente' ) : __( 'Adresse de dépôt :', 'controle-parapente' ) ) . "
+" . CP_Settings::get( 'workshop_address' );
+		}
+		self::send_template( $post_id, 'request', $extra );
 	}
 
 	public static function status_changed( $post_id ) {
-		$d        = CP_Controle::get( $post_id );
-		$statuses = CP_Controle::statuses();
-		$verdicts = CP_Controle::verdicts();
-
-		$body  = sprintf( __( 'Bonjour %s,', 'controle-parapente' ), $d['pilot_name'] ) . "\n\n";
-		$body .= sprintf( __( 'Le statut de votre contrôle %1$s est maintenant : %2$s.', 'controle-parapente' ), $d['reference'], $statuses[ $d['status'] ] ?? $d['status'] ) . "\n\n";
-		$body .= self::summary( $d ) . "\n";
-
+		$d     = CP_Controle::get( $post_id );
+		$extra = self::summary( $d );
 		if ( CP_Controle::has_certificate( $d['status'] ) ) {
-			if ( $d['verdict'] ) {
-				$body .= sprintf( __( 'Résultat : %s', 'controle-parapente' ), $verdicts[ $d['verdict'] ] ) . "\n";
-			}
-			if ( $d['next_date'] ) {
-				$body .= sprintf( __( 'Prochain contrôle conseillé : %s', 'controle-parapente' ), CP_Controle::format_date( $d['next_date'] ) ) . "\n";
-			}
-			if ( $d['comments'] ) {
-				$body .= "\n" . __( 'Observations :', 'controle-parapente' ) . "\n" . $d['comments'] . "\n";
-			}
-			$body .= "\n" . __( 'Votre fiche de contrôle :', 'controle-parapente' ) . "\n" . CP_Controle::public_certificate_url( $post_id ) . "\n";
-		}
+			$vars   = self::vars( $post_id, $d );
+			$extra .= "
 
-		self::send(
-			$d['email'],
-			sprintf( __( 'Contrôle %1$s : %2$s', 'controle-parapente' ), $d['reference'], $statuses[ $d['status'] ] ?? '' ),
-			$body
-		);
+" . sprintf( __( 'Résultat : %s', 'controle-parapente' ), $vars['resultat'] );
+			if ( $d['next_date'] ) {
+				$extra .= "
+" . sprintf( __( 'Prochain contrôle conseillé : %s', 'controle-parapente' ), $vars['prochain_controle'] );
+			}
+			$extra .= "
+
+" . __( 'Votre rapport de contrôle :', 'controle-parapente' ) . "
+" . $vars['lien'];
+		}
+		return self::send_template( $post_id, 'status', $extra );
 	}
 
 	/**
@@ -124,44 +142,10 @@ class CP_Emails {
 	 * @return bool
 	 */
 	public static function report( $post_id ) {
-		$d        = CP_Controle::get( $post_id );
-		$verdicts = CP_Controle::verdicts();
-
-		$body  = sprintf( __( 'Bonjour %s,', 'controle-parapente' ), $d['pilot_name'] ) . "\n\n";
-		$body .= sprintf( __( 'Le contrôle de votre %s est terminé. Vous trouverez votre rapport complet ici :', 'controle-parapente' ), CP_Controle::equipment_label( $d ) ) . "\n";
-		$body .= CP_Controle::public_certificate_url( $post_id ) . "\n\n";
-		$body .= self::summary( $d ) . "\n";
-		if ( $d['verdict'] ) {
-			$body .= sprintf( __( 'Résultat : %s', 'controle-parapente' ), $verdicts[ $d['verdict'] ] ) . "\n";
-		}
-		if ( $d['next_date'] ) {
-			$body .= sprintf( __( 'Prochain contrôle conseillé : %s', 'controle-parapente' ), CP_Controle::format_date( $d['next_date'] ) ) . "\n";
-		}
-		$body .= "\n" . __( 'Merci de votre confiance et bons vols !', 'controle-parapente' );
-
-		return self::send(
-			$d['email'],
-			sprintf( __( 'Votre rapport de contrôle %s', 'controle-parapente' ), $d['reference'] ),
-			$body
-		);
+		return self::send_template( $post_id, 'report' );
 	}
 
 	public static function reminder( $post_id ) {
-		$d = CP_Controle::get( $post_id );
-
-		$body  = sprintf( __( 'Bonjour %s,', 'controle-parapente' ), $d['pilot_name'] ) . "\n\n";
-		$body .= sprintf(
-			__( 'Le prochain contrôle de votre %1$s est prévu pour le %2$s.', 'controle-parapente' ),
-			CP_Controle::equipment_label( $d ),
-			CP_Controle::format_date( $d['next_date'] )
-		) . "\n";
-		$body .= __( 'Un contrôle régulier est indispensable pour voler en sécurité. N\'hésitez pas à nous contacter ou à faire une demande sur notre site.', 'controle-parapente' ) . "\n\n";
-		$body .= self::summary( $d );
-
-		return self::send(
-			$d['email'],
-			sprintf( __( 'Rappel : contrôle de votre %s', 'controle-parapente' ), CP_Controle::equipment_label( $d ) ),
-			$body
-		);
+		return self::send_template( $post_id, 'reminder', self::summary( CP_Controle::get( $post_id ) ) );
 	}
 }
