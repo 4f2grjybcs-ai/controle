@@ -189,13 +189,13 @@
 		return state[ set ][ id ] && state[ set ][ id ][ side ] !== undefined ? state[ set ][ id ][ side ] : '';
 	}
 
-	/** Usine corrigée = usine − élévateur + offset. */
+	/** Usine corrigée = usine + élévateur + offset. */
 	function corrected( id ) {
 		var f = num( factory( id ) );
 		if ( f === null ) {
 			return null;
 		}
-		return f - ( num( riserInput ? riserInput.value : '' ) || 0 ) + ( num( offsetInput ? offsetInput.value : '' ) || 0 );
+		return f + ( num( riserInput ? riserInput.value : '' ) || 0 ) + ( num( offsetInput ? offsetInput.value : '' ) || 0 );
 	}
 
 	/** Résultat = voile − usine corrigée. */

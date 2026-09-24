@@ -156,6 +156,7 @@ class CP_Controle {
 			'source'          => $source,
 			'source_label'    => isset( $sources[ $source ] ) ? $sources[ $source ] : '',
 			'porosity_unit'   => CP_Settings::get( 'porosity_unit' ),
+			'porosity_factor' => (float) CP_Settings::get( 'porosity_factor' ),
 			'porosity_alert'  => $pick( $d['por_alert'], 'porosity_alert' ),
 			'porosity_reform' => $pick( $d['por_reform'], 'porosity_reform' ),
 			'tear_reform'     => $pick( $d['tear_reform'], 'tear_reform' ),
@@ -163,9 +164,28 @@ class CP_Controle {
 		);
 	}
 
+	/**
+	 * Unité de saisie de la porosité (s ou l/m²/min). Le rapport est toujours en l/m²/min.
+	 */
 	public static function porosity_unit_label( $unit = null ) {
 		$unit = null === $unit ? CP_Settings::get( 'porosity_unit' ) : $unit;
 		return 's' === $unit ? 's' : 'l/m²/min';
+	}
+
+	/**
+	 * Convertit une mesure saisie en l/m²/min (temps en secondes : constante ÷ secondes).
+	 *
+	 * @return float|null
+	 */
+	public static function porosity_lm2min( $value, array $t ) {
+		if ( '' === $value || null === $value || ! is_numeric( $value ) ) {
+			return null;
+		}
+		$value = (float) $value;
+		if ( 's' !== $t['porosity_unit'] ) {
+			return $value;
+		}
+		return $value > 0 ? $t['porosity_factor'] / $value : null;
 	}
 
 	public static function visual_states() {
@@ -471,20 +491,17 @@ class CP_Controle {
 
 	/**
 	 * Évaluation d'une mesure de porosité : ok / warn (alerte) / bad (réforme) / ''.
-	 * En l/m²/min, plus la valeur est haute, plus le tissu est poreux ; en secondes, c'est l'inverse.
+	 * La mesure est d'abord convertie en l/m²/min ; plus la valeur est haute, plus le tissu est poreux.
 	 *
-	 * @param string $value Mesure.
+	 * @param string $value Mesure saisie.
 	 * @param array  $t     Seuils (CP_Controle::thresholds()).
 	 */
 	public static function porosity_level( $value, array $t ) {
-		if ( '' === $value || ! is_numeric( $value ) ) {
+		$flow = self::porosity_lm2min( $value, $t );
+		if ( null === $flow ) {
 			return '';
 		}
-		$value = (float) $value;
-		if ( 's' === $t['porosity_unit'] ) {
-			return $value <= $t['porosity_reform'] ? 'bad' : ( $value <= $t['porosity_alert'] ? 'warn' : 'ok' );
-		}
-		return $value >= $t['porosity_reform'] ? 'bad' : ( $value >= $t['porosity_alert'] ? 'warn' : 'ok' );
+		return $flow >= $t['porosity_reform'] ? 'bad' : ( $flow >= $t['porosity_alert'] ? 'warn' : 'ok' );
 	}
 
 	public static function tear_level( $value, array $t ) {

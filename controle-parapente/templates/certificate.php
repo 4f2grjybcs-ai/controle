@@ -34,7 +34,6 @@ $itypes      = CP_Controle::inspection_types();
 $itype       = isset( $itypes[ $d['inspection_type'] ] ) ? $itypes[ $d['inspection_type'] ]['label'] : '';
 $done        = CP_Controle::tests_done( $d );
 $t           = CP_Controle::thresholds( $d );
-$unit        = CP_Controle::porosity_unit_label( $t['porosity_unit'] );
 $state_ok    = CP_Controle::state_allowed( $d );
 $state_list  = CP_Controle::state_labels();
 $instruments = CP_Settings::instruments();
@@ -311,27 +310,50 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 			<?php if ( ! $is_done( 'P' ) ) : ?>
 				<?php $not_done( 'P' ); ?>
 			<?php elseif ( $d['porosity'] ) : ?>
-				<?php $stats = CP_Controle::stats( $d['porosity'] ); ?>
+				<?php
+				// Valeurs converties en l/m²/min (saisie en secondes : constante ÷ secondes).
+				$seconds = 's' === $t['porosity_unit'];
+				$flows   = array();
+				foreach ( $d['porosity'] as $row ) {
+					$flows[] = array( 'value' => CP_Controle::porosity_lm2min( $row['value'], $t ) );
+				}
+				$stats   = CP_Controle::stats( $flows );
+				$lm      = ' l/m²/min';
+				$flow_lv = static function ( $flow ) use ( $t ) {
+					return null === $flow ? '' : ( $flow >= $t['porosity_reform'] ? 'bad' : ( $flow >= $t['porosity_alert'] ? 'warn' : 'ok' ) );
+				};
+				?>
+				<?php if ( $stats ) : ?>
 				<div class="cp-metrics">
 					<div><span class="cp-small"><?php esc_html_e( 'Points mesurés', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $stats['n'] ); ?></strong></div>
-					<div><span class="cp-small"><?php esc_html_e( 'Minimum', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( $stats['min'] ) . ' ' . $unit ); ?></strong></div>
-					<div><span class="cp-small"><?php esc_html_e( 'Maximum', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( $stats['max'] ) . ' ' . $unit ); ?></strong></div>
-					<div class="lvl-<?php echo esc_attr( CP_Controle::porosity_level( (string) $stats['mean'], $t ) ); ?>"><span class="cp-small"><?php esc_html_e( 'Moyenne', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( $stats['mean'] ) . ' ' . $unit ); ?></strong></div>
-					<div><span class="cp-small"><?php esc_html_e( 'Alerte / réforme', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( $t['porosity_alert'] ) . ' / ' . $fmt( $t['porosity_reform'] ) . ' ' . $unit ); ?></strong></div>
+					<div><span class="cp-small"><?php esc_html_e( 'Minimum', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( round( $stats['min'] ) ) . $lm ); ?></strong></div>
+					<div><span class="cp-small"><?php esc_html_e( 'Maximum', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( round( $stats['max'] ) ) . $lm ); ?></strong></div>
+					<div class="lvl-<?php echo esc_attr( $flow_lv( $stats['mean'] ) ); ?>"><span class="cp-small"><?php esc_html_e( 'Moyenne', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( round( $stats['mean'] ) ) . $lm ); ?></strong></div>
+					<div><span class="cp-small"><?php esc_html_e( 'Alerte / réforme', 'controle-parapente' ); ?></span><strong><?php echo esc_html( $fmt( $t['porosity_alert'] ) . ' / ' . $fmt( $t['porosity_reform'] ) . $lm ); ?></strong></div>
 				</div>
+				<?php endif; ?>
 				<table class="cp-table">
-					<thead><tr><th><?php esc_html_e( 'Position du point de mesure', 'controle-parapente' ); ?></th><th class="num"><?php echo esc_html( sprintf( __( 'Mesure (%s)', 'controle-parapente' ), $unit ) ); ?></th><th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th></tr></thead>
+					<thead><tr>
+						<th><?php esc_html_e( 'Position du point de mesure', 'controle-parapente' ); ?></th>
+						<?php if ( $seconds ) : ?><th class="num"><?php esc_html_e( 'Temps mesuré (s)', 'controle-parapente' ); ?></th><?php endif; ?>
+						<th class="num"><?php esc_html_e( 'Porosité (l/m²/min)', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th>
+					</tr></thead>
 					<tbody>
-					<?php foreach ( $d['porosity'] as $row ) : ?>
-						<?php $level = CP_Controle::porosity_level( $row['value'], $t ); ?>
+					<?php foreach ( $d['porosity'] as $i => $row ) : ?>
+						<?php $flow = $flows[ $i ]['value']; ?>
 						<tr>
 							<td><?php echo esc_html( $row['zone'] ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $row['value'] ) ); ?></td>
-							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( $level_text( $level ) ); ?></td>
+							<?php if ( $seconds ) : ?><td class="num"><?php echo esc_html( $fmt( $row['value'] ) ); ?></td><?php endif; ?>
+							<td class="num"><?php echo esc_html( null === $flow ? '—' : $fmt( round( $flow ) ) ); ?></td>
+							<td class="lvl-<?php echo esc_attr( $flow_lv( $flow ) ); ?>"><?php echo esc_html( $level_text( $flow_lv( $flow ) ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				<?php if ( $seconds ) : ?>
+					<p class="cp-small"><?php echo esc_html( sprintf( __( 'Conversion : l/m²/min = %s ÷ temps en secondes.', 'controle-parapente' ), $fmt( $t['porosity_factor'] ) ) ); ?></p>
+				<?php endif; ?>
 			<?php else : ?>
 				<p class="cp-small">—</p>
 			<?php endif; ?>

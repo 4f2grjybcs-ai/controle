@@ -52,6 +52,7 @@ class CP_Admin {
 			'cpAdmin',
 			array(
 				'porosityUnit'   => CP_Settings::get( 'porosity_unit' ),
+				'porosityFactor' => (float) CP_Settings::get( 'porosity_factor' ),
 				'porosityAlert'  => (float) CP_Settings::get( 'porosity_alert' ),
 				'porosityReform' => (float) CP_Settings::get( 'porosity_reform' ),
 				'tearReform'     => (float) CP_Settings::get( 'tear_reform' ),
@@ -277,13 +278,20 @@ class CP_Admin {
 		printf(
 			'<p class="description">%s</p>',
 			esc_html(
-				sprintf(
-					/* translators: 1: unité, 2: valeur d'alerte, 3: valeur de réforme. */
-					__( 'Mesures au porosimètre en %1$s : au moins 6 points sur l\'extrados répartis sur l\'envergure (20-30 cm derrière le bord d\'attaque) et 1 point sur l\'intrados. Alerte : %2$s — réforme : %3$s (modifiables dans « Type d\'inspection & normes »).', 'controle-parapente' ),
-					$unit,
-					$t['porosity_alert'],
-					$t['porosity_reform']
-				)
+				's' === $t['porosity_unit']
+					? sprintf(
+						/* translators: 1: constante, 2: alerte, 3: réforme */
+						__( 'Temps mesuré au porosimètre en secondes : au moins 6 points sur l\'extrados (20-30 cm derrière le bord d\'attaque) et 1 sur l\'intrados. Converti en l/m²/min (%1$s ÷ secondes) sur le rapport. Alerte : %2$s l/m²/min — réforme : %3$s l/m²/min.', 'controle-parapente' ),
+						$t['porosity_factor'],
+						$t['porosity_alert'],
+						$t['porosity_reform']
+					)
+					: sprintf(
+						/* translators: 1: alerte, 2: réforme */
+						__( 'Mesures en l/m²/min : au moins 6 points sur l\'extrados (20-30 cm derrière le bord d\'attaque) et 1 sur l\'intrados. Alerte : %1$s — réforme : %2$s.', 'controle-parapente' ),
+						$t['porosity_alert'],
+						$t['porosity_reform']
+					)
 			)
 		);
 		self::repeatable(
@@ -381,7 +389,7 @@ class CP_Admin {
 		}
 		echo '</tbody></table>';
 
-		$unit = CP_Controle::porosity_unit_label();
+		$unit = 'l/m²/min';
 		echo '<h4>' . esc_html__( 'Seuils de ce contrôle', 'controle-parapente' ) . '</h4>';
 		echo '<p class="description">' . esc_html__( 'Laisser vide pour utiliser les valeurs des réglages. Ordre de priorité : constructeur, PMA, référence de l\'atelier.', 'controle-parapente' ) . '</p><div class="cp-grid">';
 		/* translators: %s: unité */

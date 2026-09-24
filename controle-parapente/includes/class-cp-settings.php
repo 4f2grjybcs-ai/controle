@@ -78,9 +78,10 @@ class CP_Settings {
 			'norms_reference'     => array( 'normes', 'textarea', __( 'Normes appliquées (texte du rapport)', 'controle-parapente' ), self::default_norms_reference(), __( 'Pensez à mettre à jour ce texte lors d\'une nouvelle version de la norme.', 'controle-parapente' ) ),
 			'threshold_source'    => array( 'normes', 'select', __( 'Origine des seuils par défaut', 'controle-parapente' ), 'charte', __( 'Modifiable pour chaque contrôle (ex. seuils du manuel constructeur).', 'controle-parapente' ), self::threshold_sources() ),
 			'h_porosity'          => array( 'normes', 'heading', __( 'Porosité', 'controle-parapente' ) ),
-			'porosity_unit'       => array( 'normes', 'select', __( 'Unité de mesure', 'controle-parapente' ), 'lm2min', __( 'Unité recommandée pour le rapport : l/m²/min.', 'controle-parapente' ), self::porosity_units() ),
-			'porosity_alert'      => array( 'normes', 'number', __( 'Valeur d\'alerte', 'controle-parapente' ), 490, __( 'En l/m²/min : alerte au-dessus. En secondes : alerte en dessous.', 'controle-parapente' ) ),
-			'porosity_reform'     => array( 'normes', 'number', __( 'Valeur de réforme', 'controle-parapente' ), 540, __( 'En l/m²/min : réforme au-dessus. En secondes : réforme en dessous.', 'controle-parapente' ) ),
+			'porosity_unit'       => array( 'normes', 'select', __( 'Unité de saisie', 'controle-parapente' ), 's', __( 'Les mesures saisies en secondes sont converties en l/m²/min sur le rapport.', 'controle-parapente' ), self::porosity_units() ),
+			'porosity_factor'     => array( 'normes', 'number', __( 'Constante de conversion secondes → l/m²/min', 'controle-parapente' ), 5400, __( 'l/m²/min = constante ÷ temps en secondes. 5400 correspond à 10 s ≈ 540 l/m²/min et 11 s ≈ 490 l/m²/min ; adaptez-la à votre porosimètre.', 'controle-parapente' ) ),
+			'porosity_alert'      => array( 'normes', 'number', __( 'Valeur d\'alerte (l/m²/min)', 'controle-parapente' ), 490, __( 'Alerte au-dessus de cette valeur.', 'controle-parapente' ) ),
+			'porosity_reform'     => array( 'normes', 'number', __( 'Valeur de réforme (l/m²/min)', 'controle-parapente' ), 540, __( 'Réforme au-dessus de cette valeur.', 'controle-parapente' ) ),
 			'h_tear'              => array( 'normes', 'heading', __( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ) ),
 			'tear_reform'         => array( 'normes', 'number', __( 'Valeur de réforme (g)', 'controle-parapente' ), 600 ),
 			'tear_good'           => array( 'normes', 'number', __( 'Valeur « bonne » (g)', 'controle-parapente' ), 900, __( 'Entre la réforme et cette valeur : à surveiller.', 'controle-parapente' ) ),
@@ -153,6 +154,16 @@ class CP_Settings {
 	 * Retire l'ancienne mention d'un label commercial des réglages déjà enregistrés.
 	 */
 	private static function migrate( array $settings ) {
+		// Passage à la saisie de la porosité en secondes (une seule fois).
+		if ( ! get_option( 'cp_porosity_seconds' ) ) {
+			update_option( 'cp_porosity_seconds', 1, false );
+			$stored = (array) get_option( self::OPTION, array() );
+			if ( isset( $stored['porosity_unit'] ) && 's' !== $stored['porosity_unit'] ) {
+				$stored['porosity_unit'] = 's';
+				update_option( self::OPTION, $stored );
+			}
+			$settings['porosity_unit'] = 's';
+		}
 		if ( false !== stripos( (string) $settings['norms_reference'], 'paracheck' ) ) {
 			$settings['norms_reference'] = self::default_norms_reference();
 		}
@@ -172,8 +183,8 @@ class CP_Settings {
 
 	public static function porosity_units() {
 		return array(
-			'lm2min' => __( 'l/m²/min (plus c\'est haut, plus le tissu est poreux)', 'controle-parapente' ),
-			's'      => __( 'secondes (plus c\'est bas, plus le tissu est poreux)', 'controle-parapente' ),
+			's'      => __( 'Secondes (converties en l/m²/min sur le rapport)', 'controle-parapente' ),
+			'lm2min' => __( 'l/m²/min (saisie directe)', 'controle-parapente' ),
 		);
 	}
 

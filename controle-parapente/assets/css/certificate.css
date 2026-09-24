@@ -192,11 +192,27 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 .cp-thanks { font: italic 600 16px var( --cp-serif ); color: var( --cp-accent-strong ); }
 
 @media print {
-	body { background: #fff; }
+	body { background: #fff; font-size: 11.5px; }
 	.cp-toolbar { display: none; }
 	.cp-sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; border-radius: 0; }
-	section, tr, .cp-foot { page-break-inside: avoid; }
-	@page { size: A4; margin: 12mm; }
+	@page { size: A4 portrait; margin: 12mm 12mm 14mm; }
+
+	/* Blocs à ne jamais couper entre deux pages. */
+	.cp-head, .cp-hero, .cp-verdict-box, .cp-note, .cp-cursor, .cp-summary-card, .cp-metrics,
+	.cp-cols > div, .cp-notdone, .cp-wing-figure, .cp-wing-legend, .cp-foot, .cp-norms, .cp-internal,
+	tr, img, svg { break-inside: avoid; page-break-inside: avoid; }
+	/* Un titre reste avec ce qui le suit. */
+	h1, h2, h3, .cp-eyebrow, figcaption { break-after: avoid; page-break-after: avoid; }
+	/* Les petits tableaux restent entiers ; les longs (détail atelier) continuent sur la page suivante, en-tête répété. */
+	.cp-table { break-inside: avoid; page-break-inside: avoid; }
+	.cp-trim-detail { break-inside: auto; page-break-inside: auto; }
+	thead { display: table-header-group; }
+	tfoot { display: table-footer-group; }
+	/* Les deux dessins du calage tiennent ensemble sur une page. */
+	.cp-wing-pair { break-inside: avoid; page-break-inside: avoid; }
+	.cp-wing { max-height: 88mm; }
+	.cp-inspection { break-before: auto; }
+	.cp-summary-cards { break-inside: avoid; }
 }
 @media ( max-width: 640px ) {
 	.cp-sheet { padding: 20px 16px; border-radius: 0; }
@@ -305,3 +321,13 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 .cp-wing-colors { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 11px; color: var( --cp-muted ); }
 .cp-wing-legend { text-align: center; }
 .cp-workshop-only { margin-top: 18px; padding-top: 10px; border-top: 1px dashed var( --cp-line ); }
+
+/* Dessins avant / après */
+.cp-wing-pair { margin-top: 6px; }
+.cp-wing-title {
+	margin: 10px 0 2px;
+	font: 600 13px var( --cp-serif );
+	color: var( --cp-accent-strong );
+	text-align: center;
+}
+.cp-wing-figure + .cp-wing-figure { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var( --cp-line ); }

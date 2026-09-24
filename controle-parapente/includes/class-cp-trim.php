@@ -5,7 +5,7 @@
  *
  * Données stockées dans $data['trim'] :
  * - sides          : 'both' (gauche + droite) ou 'one' (un seul côté)
- * - riser_length   : longueur d'élévateur (mm) déduite des cotes usine
+ * - riser_length   : longueur d'élévateur (mm) ajoutée aux cotes usine
  * - offset         : correction de mesure (mm) ajoutée aux cotes usine
  * - structure      : [ 'A' => [ [ 'count' => 4, 'color' => 'rouge', 'gap' => 1 ], … ], … ]
  *                    gap = cases vides laissées après le groupe dans la feuille (alignement des groupes entre rangées)
@@ -14,7 +14,7 @@
  * - initial_date, final_date, initial_locked
  *
  * Comme dans la feuille de calage de l'atelier :
- *   usine corrigée = cote usine − élévateur + offset
+ *   usine corrigée = cote usine + élévateur + offset
  *   résultat       = mesure voile − usine corrigée
  * Le résultat retenu pour le rapport est celui de la mesure finale (sinon de la 1ère).
  *
@@ -268,13 +268,13 @@ class CP_Trim {
 	}
 
 	/**
-	 * Cote usine corrigée (usine − élévateur + offset), ou null.
+	 * Cote usine corrigée (usine + élévateur + offset), ou null.
 	 */
 	public static function corrected_factory( array $trim, $id ) {
 		if ( ! isset( $trim['factory'][ $id ] ) || '' === $trim['factory'][ $id ] ) {
 			return null;
 		}
-		return (float) $trim['factory'][ $id ] - (float) $trim['riser_length'] + (float) $trim['offset'];
+		return (float) $trim['factory'][ $id ] + (float) $trim['riser_length'] + (float) $trim['offset'];
 	}
 
 	/**
@@ -483,7 +483,7 @@ class CP_Trim {
 						</div>
 					</div>
 					<?php
-					$stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Déduit des cotes usine.', 'controle-parapente' ) );
+					$stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) );
 					$stepper( 'cp-trim-offset', 'cp[trim][offset]', $trim['offset'], __( 'Offset', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) );
 					?>
 					<div class="cp-sheet-control cp-sheet-dates">
@@ -498,7 +498,7 @@ class CP_Trim {
 					echo esc_html(
 						sprintf(
 							/* translators: %s: tolérance */
-							__( 'Usine corrigée = usine − élévateur + offset · Résultat = voile − usine corrigée · Tolérance ± %s mm. Flèches / Entrée pour se déplacer ; collez une colonne depuis Excel ou le laser.', 'controle-parapente' ),
+							__( 'Usine corrigée = usine + élévateur + offset · Résultat = voile − usine corrigée · Tolérance ± %s mm. Flèches / Entrée pour se déplacer ; collez une colonne depuis Excel ou le laser.', 'controle-parapente' ),
 							CP_Settings::get( 'trim_tolerance' )
 						)
 					);
@@ -611,19 +611,29 @@ class CP_Trim {
 				?>
 			</p>
 
-			<?php echo self::wing_svg( $trim, $analysis ); // phpcs:ignore WordPress.Security.EscapeOutput -- SVG construit et échappé dans wing_svg(). ?>
-			<p class="cp-small cp-wing-legend">
+			<div class="cp-wing-pair">
 				<?php
-				echo esc_html(
-					sprintf(
-						/* translators: %s: tolérance */
-						__( 'Aile vue de dessus, bord d\'attaque en haut. Chaque étiquette donne l\'écart moyen du groupe de suspentes par rapport aux cotes du constructeur (mm)%1$s. Vert : dans la tolérance de ± %2$s mm ; rouge : hors tolérance.', 'controle-parapente' ),
-						$has_final ? __( ' après intervention, avec la valeur avant intervention en petit', 'controle-parapente' ) : '',
-						CP_Settings::get( 'trim_tolerance' )
-					)
-				);
+				// phpcs:disable WordPress.Security.EscapeOutput -- SVG construit et échappé dans wing_svg().
+				if ( $has_final ) {
+					echo self::wing_svg( $trim, $analysis, 'initial', __( 'Avant intervention — 1ère mesure', 'controle-parapente' ) );
+					echo self::wing_svg( $trim, $analysis, 'final', __( 'Après intervention — mesure finale', 'controle-parapente' ) );
+				} else {
+					echo self::wing_svg( $trim, $analysis, 'initial', __( 'Mesure du calage', 'controle-parapente' ) );
+				}
+				// phpcs:enable
 				?>
-			</p>
+				<p class="cp-small cp-wing-legend">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: %s: tolérance */
+							__( 'Aile vue de dessus, bord d\'attaque en haut. Chaque étiquette donne l\'écart moyen du groupe de suspentes par rapport aux cotes du constructeur (mm). Vert : dans la tolérance de ± %s mm ; rouge : hors tolérance.', 'controle-parapente' ),
+							CP_Settings::get( 'trim_tolerance' )
+						)
+					);
+					?>
+				</p>
+			</div>
 
 			<?php if ( $detailed ) : ?>
 			<h3 class="cp-workshop-only"><?php esc_html_e( 'Détail atelier', 'controle-parapente' ); ?></h3>
@@ -721,11 +731,14 @@ class CP_Trim {
 	 * d'attaque, freins au bord de fuite). L'étiquette d'un groupe est centrée sur ses
 	 * propres points d'accroche. Moitié gauche = côté gauche, moitié droite = côté droit.
 	 *
-	 * @param array $trim     Données normalisées.
-	 * @param array $analysis Résultat de analyze().
+	 * @param array  $trim     Données normalisées.
+	 * @param array  $analysis Résultat de analyze().
+	 * @param string $set      Mesure affichée : 'initial' (avant intervention), 'final' (après)
+	 *                         ou 'result' (finale sinon 1ère, avec la valeur avant en petit).
+	 * @param string $title    Titre affiché au-dessus du dessin.
 	 * @return string
 	 */
-	public static function wing_svg( array $trim, array $analysis ) {
+	public static function wing_svg( array $trim, array $analysis, $set = 'result', $title = '' ) {
 		$w      = 900;
 		$h      = 420;
 		$cx     = $w / 2;
@@ -740,10 +753,10 @@ class CP_Trim {
 		// Position des rangées sur la corde (fraction depuis le bord d'attaque).
 		$row_pos = array( 'A' => 0.12, 'B' => 0.34, 'C' => 0.55, 'D' => 0.74, 'F' => 0.97 );
 
-		// Bord d'attaque : reculé vers les bouts, coins avant arrondis.
-		// Bord de fuite : presque droit, coins arrière carrés.
-		$round  = 0.84;          // Début de l'arrondi avant (fraction de demi-envergure).
-		$radius = $chord * 0.38; // Profondeur de l'arrondi avant.
+		// Bord d'attaque : reculé vers les bouts, « oreilles » arrondies et affinées.
+		// Bord de fuite : presque droit, à peine arrondi tout au bout.
+		$round  = 0.72;          // Début de l'arrondi avant (fraction de demi-envergure).
+		$radius = $chord + 16 - $sweep - 8; // L'arrondi descend jusqu'au bord de fuite : oreille en quart d'ellipse.
 		$le_at  = static function ( $u ) use ( $top, $sweep, $round, $radius ) {
 			$u = min( 1, abs( $u ) );
 			$y = $top + $sweep * pow( $u, 2.2 );
@@ -772,6 +785,8 @@ class CP_Trim {
 			$le[] = $x . ',' . round( $le_at( $u ), 1 );
 			$te[] = $x . ',' . round( $te_at( $u ), 1 );
 		}
+		// Bouts d'aile fermés par une courbe (oreille arrondie) plutôt qu'un trait droit.
+		// L'oreille (quart d'ellipse) rejoint le bord de fuite : on ferme par un trait très court.
 		$outline = 'M' . implode( ' L', $le ) . ' L' . implode( ' L', array_reverse( $te ) ) . ' Z';
 
 		$svg  = '<svg class="cp-wing" viewBox="0 0 ' . $w . ' ' . $h . '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' . esc_attr__( 'Écarts de calage par groupe, aile vue de dessus', 'controle-parapente' ) . '">';
@@ -841,7 +856,7 @@ class CP_Trim {
 			$slots   = self::slots( $trim['structure'], $row );
 			$scale   = 'F' === $row ? count( $slots ) : $max_slots;
 			$u_start = 0.05;
-			$u_end   = 'F' === $row ? 0.88 : 0.9;
+			$u_end   = 0.86;
 			$step    = $scale > 1 ? ( $u_end - $u_start ) / ( $scale - 1 ) : 0;
 			foreach ( $row_groups as $gi => $grp ) {
 				$hex = isset( $colors[ $grp['color'] ] ) ? $colors[ $grp['color'] ][1] : '#999';
@@ -867,12 +882,12 @@ class CP_Trim {
 
 					$side = ( -1 === $dir || ! $both ) ? 'G' : 'D';
 					$key  = $row . '|' . ( $gi + 1 ) . '|' . $side;
-					if ( ! isset( $groups[ $key ] ) || null === $groups[ $key ]['result']['mean'] ) {
+					if ( ! isset( $groups[ $key ] ) || null === $groups[ $key ][ $set ]['mean'] ) {
 						continue;
 					}
 					$g      = $groups[ $key ];
-					$value  = $g['result']['mean'];
-					$before = $analysis['has_final'] ? $g['initial']['mean'] : null;
+					$value  = $g[ $set ]['mean'];
+					$before = 'result' === $set && $analysis['has_final'] ? $g['initial']['mean'] : null;
 					$show_b = null !== $before && abs( $before - $value ) >= 1;
 					$ok     = abs( $value ) <= $tol;
 					list( $x, $y ) = $point( $dir * $u_mid, $row_pos[ $row ] );
@@ -909,6 +924,7 @@ class CP_Trim {
 		}
 		$legend .= '</div>';
 
-		return '<figure class="cp-wing-figure">' . $svg . $legend . '</figure>';
+		$caption = $title ? '<figcaption class="cp-wing-title">' . esc_html( $title ) . '</figcaption>' : '';
+		return '<figure class="cp-wing-figure">' . $caption . $svg . $legend . '</figure>';
 	}
 }

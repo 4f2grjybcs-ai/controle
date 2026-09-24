@@ -5,7 +5,8 @@
 	// wp_localize_script transmet les nombres sous forme de chaînes.
 	var raw = window.cpAdmin || {};
 	var cfg = {
-		porosityUnit: raw.porosityUnit || 'lm2min',
+		porosityUnit: raw.porosityUnit || 's',
+		porosityFactor: parseFloat( raw.porosityFactor ) || 5400,
 		porosityAlert: parseFloat( raw.porosityAlert ) || 0,
 		porosityReform: parseFloat( raw.porosityReform ) || 0,
 		tearReform: parseFloat( raw.tearReform ) || 0,
@@ -53,17 +54,19 @@
 			}
 			var alert = threshold( 'cp-por_alert', cfg.porosityAlert );
 			var reform = threshold( 'cp-por_reform', cfg.porosityReform );
-			// En l/m²/min, une valeur haute est mauvaise ; en secondes, une valeur basse.
-			var seconds = cfg.porosityUnit === 's';
-			var bad = seconds ? v <= reform : v >= reform;
-			var warn = seconds ? v <= alert : v >= alert;
-			if ( bad ) {
-				return setComputed( row, 'Réforme', 'bad' );
+			// Saisie en secondes : conversion en l/m²/min (constante ÷ secondes).
+			var flow = cfg.porosityUnit === 's' ? ( v > 0 ? cfg.porosityFactor / v : null ) : v;
+			if ( flow === null ) {
+				return setComputed( row, '', '' );
 			}
-			if ( warn ) {
-				return setComputed( row, 'Alerte', 'warn' );
+			var shown = cfg.porosityUnit === 's' ? '≈ ' + Math.round( flow ) + ' l/m²/min · ' : '';
+			if ( flow >= reform ) {
+				return setComputed( row, shown + 'Réforme', 'bad' );
 			}
-			setComputed( row, 'Conforme', 'ok' );
+			if ( flow >= alert ) {
+				return setComputed( row, shown + 'Alerte', 'warn' );
+			}
+			return setComputed( row, shown + 'Conforme', 'ok' );
 		},
 		tear: function ( row ) {
 			var v = field( row, 'value' );

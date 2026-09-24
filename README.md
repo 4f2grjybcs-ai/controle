@@ -37,13 +37,17 @@ Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 20
 - identification de l'atelier : nom, responsable, n° de police d'assurance RC pro ;
 - **type d'inspection** (révision périodique, intermédiaire, basique, mécanique, géométrique, visuelle/incident) : les tests non inclus apparaissent **« Non réalisé »**, avec la préconisation du constructeur en commentaire ;
 - **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf → Réforme), uniquement après une révision périodique complète ; aucun pourcentage d'usure ni durée de vie restante ;
-- **porosité en l/m²/min** (ou secondes) : chaque point avec sa position, minimum, maximum, moyenne, valeurs d'alerte et de réforme ;
+- **porosité** saisie en secondes et convertie en **l/m²/min** sur le rapport (constante réglable, 5400 par défaut) : chaque point avec sa position, minimum, maximum, moyenne, valeurs d'alerte et de réforme ;
 - **déchirure** (Bettsomètre, en g) et **résistance des suspentes** par étage (rupture en daN et seuil minimum) ;
 - **calage** : longueurs mesurées sous la tension indiquée (5 daN selon le PMA) ;
 - origine des seuils (constructeur → PMA → référence de l'atelier), modifiable pour chaque contrôle ;
 - instruments de mesure et dates d'étalonnage (alerte dans l'atelier si l'étalonnage a plus de 12 mois).
 
 > Les valeurs par défaut (seuils, listes, types d'inspection) sont une base de travail : vérifiez-les avec les textes officiels (standard PMA, recommandations fédérales), et ajustez-les dans *Contrôles → Réglages*.
+
+## Impression
+
+Le rapport s'imprime (ou s'enregistre en PDF) sur des pages **A4** sans couper les cartes, les dessins, les petits tableaux ni les lignes ; les titres restent avec leur contenu et les en-têtes des longs tableaux sont répétés.
 
 ## Réglages
 
@@ -57,11 +61,11 @@ La saisie reprend la feuille de calage habituelle de l'atelier, en plus pratique
    - **Cases vides** : chaque groupe peut laisser des cases vides après ses suspentes, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement.
 2. **Feuille de calage** : un tableau par numéro de suspente avec les blocs **Mesures usine → Usine corrigée → Mesures voile → Résultat**, puis **Max / Min / Diff** (entre les rangées) et **Moyenne**.
    - En haut : **Élévateur** et **Offset** (boutons − / +), **1ère mesure / 2e mesure**, **Gauche / Droite**, dates, 1ère mesure figée.
-   - *Usine corrigée = usine − élévateur + offset* · *Résultat = voile − usine corrigée*.
+   - *Usine corrigée = usine + élévateur + offset* · *Résultat = voile − usine corrigée*.
    - Flèches et Entrée pour se déplacer ; collez une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
    - Sous la feuille : l'écart moyen par groupe (1ère et 2e mesure, gauche et droite) et l'**aperçu du dessin client**, mis à jour pendant la saisie.
 
-**Rapport client** : uniquement un **dessin de l'aile vue de dessus** ; chaque groupe y est placé sur ses points d'accroche avec son écart moyen (après intervention, et la valeur avant en petit), vert dans la tolérance, rouge au-delà. Les tableaux détaillés restent sur la fiche atelier imprimée.
+**Rapport client** : uniquement le **dessin de l'aile vue de dessus**, **avant intervention** (1ère mesure) et **après intervention** (mesure finale) ; chaque groupe y est placé sur ses points d'accroche avec son écart moyen, vert dans la tolérance, rouge au-delà. Les tableaux détaillés restent sur la fiche atelier imprimée.
 
 ## Installation
 
