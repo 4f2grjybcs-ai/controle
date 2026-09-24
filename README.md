@@ -59,11 +59,12 @@ La saisie reprend la feuille de calage habituelle de l'atelier, en plus pratique
 
 1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe, du centre vers le bout d'aile.
    - **Cases vides** : chaque groupe peut laisser des cases vides après ses suspentes, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement.
-2. **Feuille de calage** : un tableau par numéro de suspente avec les blocs **Mesures usine → Usine corrigée → Mesures voile → Résultat**, puis **Max / Min / Diff** (entre les rangées) et **Moyenne**.
-   - En haut : **Élévateur** et **Offset** (boutons − / +), **1ère mesure / 2e mesure**, **Gauche / Droite**, dates, 1ère mesure figée.
-   - *Usine corrigée = usine + élévateur + offset* · *Résultat = voile − usine corrigée*.
+2. **Mesures usine** : les cotes du constructeur, saisies une seule fois pour la fiche, avec l'**élévateur** ; l'usine corrigée s'affiche à côté (*usine + élévateur + offset*).
+3. **Feuille de calage** : pour la 1ère ou la 2e mesure, côté gauche ou droit, seulement **Mesures voile → Résultat**, puis **Max / Min / Diff** et **Moyenne**.
+   - En haut : **Tolérance ±** (10 mm par défaut, boutons − / +) et **Offset**, dates, 1ère mesure figée.
+   - *Résultat = voile − usine corrigée* : case verte dans la tolérance, **rouge dès qu'elle en sort** (la case de saisie se colore aussi).
    - Flèches et Entrée pour se déplacer ; collez une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
-   - Sous la feuille : l'écart moyen par groupe (1ère et 2e mesure, gauche et droite) et l'**aperçu du dessin client**, mis à jour pendant la saisie.
+   - Sous la feuille : l'écart moyen par groupe et l'**aperçu du dessin client**, mis à jour pendant la saisie.
 
 **Rapport client** : uniquement le **dessin de l'aile vue de dessus**, **avant intervention** (1ère mesure) et **après intervention** (mesure finale) ; chaque groupe y est placé sur ses points d'accroche avec son écart moyen, vert dans la tolérance, rouge au-delà. Les tableaux détaillés restent sur la fiche atelier imprimée.
 

@@ -106,6 +106,7 @@ class CP_Trim {
 			'initial'        => array(),
 			'final'          => array(),
 			'riser_length'   => '',
+			'tolerance'      => '',
 			'initial_date'   => '',
 			'final_date'     => '',
 			'initial_locked' => '',
@@ -225,6 +226,7 @@ class CP_Trim {
 		$trim['sides']          = isset( $raw['sides'] ) && 'one' === $raw['sides'] ? 'one' : 'both';
 		$trim['offset']         = isset( $raw['offset'] ) ? self::num( $raw['offset'] ) : '';
 		$trim['riser_length']   = isset( $raw['riser_length'] ) ? self::num( $raw['riser_length'] ) : '';
+		$trim['tolerance']      = isset( $raw['tolerance'] ) && '' !== self::num( $raw['tolerance'] ) && (float) $raw['tolerance'] > 0 ? self::num( $raw['tolerance'] ) : '';
 		$trim['initial_date']   = CP_Controle::sanitize_date( isset( $raw['initial_date'] ) ? $raw['initial_date'] : '' );
 		$trim['final_date']     = CP_Controle::sanitize_date( isset( $raw['final_date'] ) ? $raw['final_date'] : '' );
 		$trim['initial_locked'] = ! empty( $raw['initial_locked'] ) ? '1' : '';
@@ -268,6 +270,13 @@ class CP_Trim {
 	}
 
 	/**
+	 * Tolérance de ce calage (± mm) : valeur de la fiche, sinon réglage par défaut.
+	 */
+	public static function tolerance( array $trim ) {
+		return isset( $trim['tolerance'] ) && '' !== (string) $trim['tolerance'] ? (float) $trim['tolerance'] : (float) CP_Settings::get( 'trim_tolerance' );
+	}
+
+	/**
 	 * Cote usine corrigée (usine + élévateur + offset), ou null.
 	 */
 	public static function corrected_factory( array $trim, $id ) {
@@ -285,7 +294,7 @@ class CP_Trim {
 	 */
 	public static function analyze( array $trim ) {
 		$trim      = self::normalize( $trim );
-		$tolerance = (float) CP_Settings::get( 'trim_tolerance' );
+		$tolerance = self::tolerance( $trim );
 		$sides     = array_keys( self::side_labels( $trim['sides'] ) );
 		$lines     = array();
 		$groups    = array();
@@ -446,12 +455,13 @@ class CP_Trim {
 			<?php
 		};
 		?>
-		<div class="cp-trim" data-tolerance="<?php echo esc_attr( CP_Settings::get( 'trim_tolerance' ) ); ?>" data-step="<?php echo esc_attr( $has_fact ? 'feuille' : 'structure' ); ?>"
+		<div class="cp-trim" data-tolerance="<?php echo esc_attr( self::tolerance( $trim ) ); ?>" data-step="<?php echo esc_attr( $has_fact ? 'feuille' : 'structure' ); ?>"
 			data-preview-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>" data-preview-nonce="<?php echo esc_attr( wp_create_nonce( 'cp_wing_preview' ) ); ?>">
 
 			<nav class="cp-trim-steps" role="tablist">
 				<button type="button" data-step="structure"><span>1</span> <?php esc_html_e( 'Structure & couleurs', 'controle-parapente' ); ?></button>
-				<button type="button" data-step="feuille"><span>2</span> <?php esc_html_e( 'Feuille de calage', 'controle-parapente' ); ?></button>
+				<button type="button" data-step="usine"><span>2</span> <?php esc_html_e( 'Mesures usine', 'controle-parapente' ); ?></button>
+				<button type="button" data-step="feuille"><span>3</span> <?php esc_html_e( 'Feuille de calage', 'controle-parapente' ); ?></button>
 			</nav>
 
 			<!-- 1. Structure -->
@@ -469,7 +479,16 @@ class CP_Trim {
 				</div>
 			</div>
 
-			<!-- 2. Feuille de calage -->
+			<!-- 2. Mesures usine (saisies une seule fois) -->
+			<div class="cp-trim-step" data-step-panel="usine">
+				<div class="cp-sheet-toolbar">
+					<?php $stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) ); ?>
+					<p class="cp-sheet-formula"><?php esc_html_e( 'Cotes du manuel constructeur (mm), une seule fois pour toute la fiche. Usine corrigée = usine + élévateur + offset (l\'offset se règle dans la feuille de calage). Flèches / Entrée pour se déplacer ; vous pouvez coller une colonne depuis Excel.', 'controle-parapente' ); ?></p>
+				</div>
+				<div class="cp-sheet-wrap"><div class="cp-sheet-grid cp-sheet-factory"></div></div>
+			</div>
+
+			<!-- 3. Feuille de calage -->
 			<div class="cp-trim-step" data-step-panel="feuille">
 				<div class="cp-sheet-toolbar">
 					<div class="cp-sheet-switches">
@@ -483,7 +502,7 @@ class CP_Trim {
 						</div>
 					</div>
 					<?php
-					$stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) );
+					$stepper( 'cp-trim-tol', 'cp[trim][tolerance]', self::length( self::tolerance( $trim ) ), __( 'Tolérance ±', 'controle-parapente' ), __( 'Au-delà, la case passe au rouge.', 'controle-parapente' ) );
 					$stepper( 'cp-trim-offset', 'cp[trim][offset]', $trim['offset'], __( 'Offset', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) );
 					?>
 					<div class="cp-sheet-control cp-sheet-dates">
@@ -493,18 +512,8 @@ class CP_Trim {
 						<label class="cp-check"><input type="checkbox" id="cp-trim-locked" name="cp[trim][initial_locked]" value="1" <?php checked( $trim['initial_locked'], '1' ); ?> /> <?php esc_html_e( '1ère mesure figée', 'controle-parapente' ); ?></label>
 					</div>
 				</div>
-				<p class="cp-sheet-formula">
-					<?php
-					echo esc_html(
-						sprintf(
-							/* translators: %s: tolérance */
-							__( 'Usine corrigée = usine + élévateur + offset · Résultat = voile − usine corrigée · Tolérance ± %s mm. Flèches / Entrée pour se déplacer ; collez une colonne depuis Excel ou le laser.', 'controle-parapente' ),
-							CP_Settings::get( 'trim_tolerance' )
-						)
-					);
-					?>
-				</p>
-				<div class="cp-sheet-wrap"><div class="cp-sheet"></div></div>
+				<p class="cp-sheet-formula"><?php esc_html_e( 'Résultat = voile − usine corrigée. Vert : dans la tolérance · rouge : hors tolérance. Flèches / Entrée pour se déplacer ; collez une colonne depuis Excel ou le laser.', 'controle-parapente' ); ?></p>
+				<div class="cp-sheet-wrap"><div class="cp-sheet-grid cp-sheet"></div></div>
 				<p class="cp-sheet-actions">
 					<button type="button" class="button cp-trim-copy"><?php esc_html_e( 'Copier la 1ère mesure dans la 2e (cases vides)', 'controle-parapente' ); ?></button>
 				</p>
@@ -588,7 +597,7 @@ class CP_Trim {
 			<h2><?php echo esc_html( null === $title ? __( 'Calage', 'controle-parapente' ) : $title ); ?></h2>
 			<p class="cp-small">
 				<?php
-				$info = array( sprintf( __( 'Tolérance : ± %s mm', 'controle-parapente' ), CP_Settings::get( 'trim_tolerance' ) ) );
+				$info = array( sprintf( __( 'Tolérance : ± %s mm', 'controle-parapente' ), self::length( self::tolerance( $trim ) ) ) );
 				if ( CP_Settings::get( 'trim_load' ) ) {
 					$info[] = sprintf( __( 'longueurs mesurées sous %s', 'controle-parapente' ), CP_Settings::get( 'trim_load' ) );
 				}
@@ -628,7 +637,7 @@ class CP_Trim {
 						sprintf(
 							/* translators: %s: tolérance */
 							__( 'Aile vue de dessus, bord d\'attaque en haut. Chaque étiquette donne l\'écart moyen du groupe de suspentes par rapport aux cotes du constructeur (mm). Vert : dans la tolérance de ± %s mm ; rouge : hors tolérance.', 'controle-parapente' ),
-							CP_Settings::get( 'trim_tolerance' )
+							self::length( self::tolerance( $trim ) )
 						)
 					);
 					?>
@@ -746,7 +755,7 @@ class CP_Trim {
 		$top    = 44;    // Bord d'attaque au centre.
 		$chord  = 245;   // Corde centrale (px).
 		$colors = self::colors();
-		$tol    = (float) CP_Settings::get( 'trim_tolerance' );
+		$tol    = self::tolerance( $trim );
 		$both   = 'one' !== $trim['sides'];
 
 		// Position des rangées sur la corde (fraction depuis le bord d'attaque).

@@ -450,3 +450,13 @@
 	box-shadow: inset 3px 0 0 var( --chip );
 	background: repeating-linear-gradient( -45deg, #fff, #fff 5px, color-mix( in srgb, var( --chip ) 12%, #fff ) 5px, color-mix( in srgb, var( --chip ) 12%, #fff ) 10px );
 }
+
+/* Feuille de calage : couleur selon la tolérance */
+.cp-sheet-calc.is-result.lvl-ok { background: #e3f1df; color: #2f6b37; }
+.cp-sheet-calc.is-result.lvl-bad { background: #e8826a; color: #fff; }
+.cp-sheet-cell[data-voile].is-ok { background: color-mix( in srgb, #5b8a5f 10%, #fff ); }
+.cp-sheet-cell[data-voile].is-bad { background: #fbd9cf; box-shadow: inset 3px 0 0 var( --chip ), inset 0 0 0 2px #d4674c; }
+.cp-sheet-cell[data-voile].is-bad .cp-sheet-input { color: #8f2d17; font-weight: 700; }
+.cp-sheet-table tfoot .lvl-bad { background: #e8826a; color: #fff; }
+#cp-trim-tol { font-weight: 800; color: #8a3f22; }
+.cp-sheet-factory .cp-sheet-input { width: 72px; }

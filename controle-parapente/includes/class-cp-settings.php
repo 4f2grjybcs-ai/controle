@@ -86,7 +86,7 @@ class CP_Settings {
 			'tear_reform'         => array( 'normes', 'number', __( 'Valeur de réforme (g)', 'controle-parapente' ), 600 ),
 			'tear_good'           => array( 'normes', 'number', __( 'Valeur « bonne » (g)', 'controle-parapente' ), 900, __( 'Entre la réforme et cette valeur : à surveiller.', 'controle-parapente' ) ),
 			'h_geometry'          => array( 'normes', 'heading', __( 'Géométrie (calage)', 'controle-parapente' ) ),
-			'trim_tolerance'      => array( 'normes', 'number', __( 'Tolérance (± mm)', 'controle-parapente' ), 15 ),
+			'trim_tolerance'      => array( 'normes', 'number', __( 'Tolérance par défaut (± mm)', 'controle-parapente' ), 10, __( 'Modifiable sur chaque fiche, dans la feuille de calage.', 'controle-parapente' ) ),
 			'trim_load'           => array( 'normes', 'text', __( 'Tension de mesure des suspentes', 'controle-parapente' ), '5 daN', __( 'Affichée sur le rapport (le standard PMA prévoit une mesure sous 5 daN).', 'controle-parapente' ) ),
 
 			/* ---------------- Instruments ---------------- */
@@ -154,6 +154,16 @@ class CP_Settings {
 	 * Retire l'ancienne mention d'un label commercial des réglages déjà enregistrés.
 	 */
 	private static function migrate( array $settings ) {
+		// Ancienne tolérance de calage par défaut (15 mm) remplacée par 10 mm (une seule fois).
+		if ( ! get_option( 'cp_trim_tolerance_10' ) ) {
+			update_option( 'cp_trim_tolerance_10', 1, false );
+			$stored = (array) get_option( self::OPTION, array() );
+			if ( isset( $stored['trim_tolerance'] ) && 15 == $stored['trim_tolerance'] ) {
+				$stored['trim_tolerance'] = 10;
+				update_option( self::OPTION, $stored );
+				$settings['trim_tolerance'] = 10;
+			}
+		}
 		// Passage à la saisie de la porosité en secondes (une seule fois).
 		if ( ! get_option( 'cp_porosity_seconds' ) ) {
 			update_option( 'cp_porosity_seconds', 1, false );
