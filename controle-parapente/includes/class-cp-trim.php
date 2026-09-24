@@ -7,7 +7,8 @@
  * - sides          : 'both' (gauche + droite) ou 'one' (un seul côté)
  * - riser_length   : longueur d'élévateur (mm) déduite des cotes usine
  * - offset         : correction de mesure (mm) ajoutée aux cotes usine
- * - structure      : [ 'A' => [ [ 'count' => 4, 'color' => 'rouge' ], … ], … ]
+ * - structure      : [ 'A' => [ [ 'count' => 4, 'color' => 'rouge', 'gap' => 1 ], … ], … ]
+ *                    gap = cases vides laissées après le groupe dans la feuille (alignement des groupes entre rangées)
  * - factory        : [ 'A1' => 7000, … ] cotes usine
  * - initial, final : [ 'A1' => [ 'G' => 7012, 'D' => 7008 ], … ] mesures brutes
  * - initial_date, final_date, initial_locked
@@ -84,6 +85,7 @@ class CP_Trim {
 			$groups[] = array(
 				'count' => $count,
 				'color' => self::default_color( $i ),
+				'gap'   => 0,
 			);
 		}
 		return $groups;
@@ -132,6 +134,7 @@ class CP_Trim {
 				$groups[ $i ] = array(
 					'count' => isset( $group['count'] ) ? (int) $group['count'] : 0,
 					'color' => isset( $group['color'], $colors[ $group['color'] ] ) ? $group['color'] : self::default_color( $i ),
+					'gap'   => isset( $group['gap'] ) ? max( 0, min( self::MAX_LINES, (int) $group['gap'] ) ) : 0,
 				);
 			}
 			$trim['structure'][ $row ] = $groups;
@@ -168,6 +171,28 @@ class CP_Trim {
 			}
 		}
 		return $lines;
+	}
+
+	/**
+	 * Cases d'une rangée dans la feuille : numéro de suspente (A1…) ou null pour une case vide.
+	 *
+	 * @param array  $structure Structure normalisée.
+	 * @param string $row       Rangée.
+	 * @return array Liste de [ 'id' => …|null, 'group' => n ].
+	 */
+	public static function slots( array $structure, $row ) {
+		$slots = array();
+		$n     = 0;
+		foreach ( isset( $structure[ $row ] ) ? (array) $structure[ $row ] : array() as $gi => $group ) {
+			for ( $k = 0; $k < (int) $group['count']; $k++ ) {
+				++$n;
+				$slots[] = array( 'id' => $row . $n, 'group' => $gi + 1 );
+			}
+			for ( $k = 0; $k < (int) ( isset( $group['gap'] ) ? $group['gap'] : 0 ); $k++ ) {
+				$slots[] = array( 'id' => null, 'group' => $gi + 1 );
+			}
+		}
+		return $slots;
 	}
 
 	public static function num( $value ) {
@@ -216,6 +241,7 @@ class CP_Trim {
 					$groups[] = array(
 						'count' => min( self::MAX_LINES, $count ),
 						'color' => isset( $colors[ $color ] ) ? $color : self::default_color( count( $groups ) ),
+						'gap'   => is_array( $group ) && isset( $group['gap'] ) ? min( self::MAX_LINES, absint( $group['gap'] ) ) : 0,
 					);
 				}
 			}
@@ -793,8 +819,12 @@ class CP_Trim {
 			$groups[ $g['row'] . '|' . $g['group'] . '|' . $g['side'] ] = $g;
 		}
 
-		$dots = '';
-		$tags = '';
+		$dots      = '';
+		$tags      = '';
+		$max_slots = 1;
+		foreach ( array( 'A', 'B', 'C', 'D' ) as $r ) {
+			$max_slots = max( $max_slots, count( self::slots( $trim['structure'], $r ) ) );
+		}
 		foreach ( $trim['structure'] as $row => $row_groups ) {
 			if ( ! $row_groups || ! isset( $row_pos[ $row ] ) ) {
 				continue;
@@ -806,16 +836,20 @@ class CP_Trim {
 			if ( ! $total ) {
 				continue;
 			}
-			// Points d'accroche répartis régulièrement du centre vers le bout d'aile.
+			// Points d'accroche répartis du centre vers le bout d'aile, case par case :
+			// les cases vides décalent les groupes pour qu'ils restent face à face d'une rangée à l'autre.
+			$slots   = self::slots( $trim['structure'], $row );
+			$scale   = 'F' === $row ? count( $slots ) : $max_slots;
 			$u_start = 0.05;
 			$u_end   = 'F' === $row ? 0.88 : 0.9;
-			$step    = $total > 1 ? ( $u_end - $u_start ) / ( $total - 1 ) : 0;
-			$n       = 0;
+			$step    = $scale > 1 ? ( $u_end - $u_start ) / ( $scale - 1 ) : 0;
 			foreach ( $row_groups as $gi => $grp ) {
 				$hex = isset( $colors[ $grp['color'] ] ) ? $colors[ $grp['color'] ][1] : '#999';
 				$us  = array();
-				for ( $k = 0; $k < (int) $grp['count']; $k++, $n++ ) {
-					$us[] = $u_start + $n * $step;
+				foreach ( $slots as $si => $slot ) {
+					if ( null !== $slot['id'] && $slot['group'] === $gi + 1 ) {
+						$us[] = $u_start + $si * $step;
+					}
 				}
 				if ( ! $us ) {
 					continue;

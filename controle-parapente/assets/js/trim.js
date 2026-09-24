@@ -126,6 +126,55 @@
 		return list;
 	}
 
+	/** Cases d'une rangée dans la feuille : une suspente, ou null pour une case vide. */
+	function rowSlots( row ) {
+		var slots = [];
+		var n = 0;
+		state.structure[ row ].forEach( function ( g, gi ) {
+			for ( var k = 0; k < count( g ); k++ ) {
+				n++;
+				slots.push( { id: row + n, n: n, group: gi + 1, color: g.color } );
+			}
+			for ( var v = 0; v < gap( g ); v++ ) {
+				slots.push( { id: null, group: gi + 1, color: g.color } );
+			}
+		} );
+		return slots;
+	}
+
+	function gap( g ) {
+		return Math.max( 0, Math.min( 40, parseInt( g.gap, 10 ) || 0 ) );
+	}
+
+	/**
+	 * Aligne les groupes entre les rangées A à D : chaque groupe prend la hauteur
+	 * de la rangée qui a le plus de suspentes dans ce groupe ; les autres reçoivent des cases vides.
+	 */
+	function alignGroups() {
+		var rows = [ 'A', 'B', 'C', 'D' ].filter( function ( r ) {
+			return state.structure[ r ] && state.structure[ r ].length;
+		} );
+		var groupsCount = Math.max.apply( null, rows.map( function ( r ) {
+			return state.structure[ r ].length;
+		} ).concat( [ 0 ] ) );
+		for ( var gi = 0; gi < groupsCount; gi++ ) {
+			var height = 0;
+			rows.forEach( function ( r ) {
+				var g = state.structure[ r ][ gi ];
+				if ( g ) {
+					height = Math.max( height, count( g ) );
+				}
+			} );
+			rows.forEach( function ( r ) {
+				var g = state.structure[ r ][ gi ];
+				if ( g ) {
+					g.gap = height - count( g );
+				}
+			} );
+		}
+		structureChanged();
+	}
+
 	function activeRows() {
 		return ROW_KEYS.filter( function ( r ) {
 			return rowLines( r ).length > 0;
@@ -200,13 +249,16 @@
 					'<button type="button" class="cp-trim-color" data-row="' + row + '" data-i="' + i + '" title="Changer la couleur">' +
 					swatch( g.color ) + '<span>' + esc( colorName( g.color ) ) + '</span></button>' +
 					'<input type="hidden" name="' + base + '[color]" value="' + esc( g.color ) + '" />' +
-					'<input type="number" min="1" max="40" class="cp-trim-count" data-row="' + row + '" data-i="' + i + '" name="' + base + '[count]" value="' + esc( g.count ) + '" aria-label="Nombre de suspentes" />' +
+					'<input type="number" min="1" max="40" class="cp-trim-count" data-row="' + row + '" data-i="' + i + '" name="' + base + '[count]" value="' + esc( g.count ) + '" aria-label="Nombre de suspentes" title="Nombre de suspentes" />' +
+					'<label class="cp-trim-gap" title="Cases vides laissées après ce groupe dans la feuille">+<input type="number" min="0" max="40" class="cp-trim-gap-input" data-row="' + row + '" data-i="' + i + '" name="' + base + '[gap]" value="' + esc( gap( g ) ) + '" aria-label="Cases vides" /> vide</label>' +
 					'<button type="button" class="cp-trim-chip-del" data-row="' + row + '" data-i="' + i + '" aria-label="Supprimer le groupe">×</button>' +
 					'</div>';
 			} );
 			html += '<button type="button" class="cp-trim-add-group" data-row="' + row + '">＋ Groupe</button>';
 			html += '</div></div>';
 		} );
+		html += '<p class="cp-trim-align"><button type="button" class="button cp-trim-align-btn">Aligner les groupes entre A, B, C, D</button> ' +
+			'<span class="description">Ajoute automatiquement des cases vides quand un groupe n\'a pas le même nombre de suspentes sur chaque rangée (ex. 4 A, 4 B, 4 C mais 5 D).</span></p>';
 		structureBox.innerHTML = html;
 	}
 
@@ -223,6 +275,10 @@
 		var colorBtn = e.target.closest( '.cp-trim-color' );
 		var del = e.target.closest( '.cp-trim-chip-del' );
 		var add = e.target.closest( '.cp-trim-add-group' );
+		if ( e.target.closest( '.cp-trim-align-btn' ) ) {
+			alignGroups();
+			return;
+		}
 		if ( colorBtn ) {
 			paletteTarget = { row: colorBtn.getAttribute( 'data-row' ), i: +colorBtn.getAttribute( 'data-i' ) };
 			var r = colorBtn.getBoundingClientRect();
@@ -243,7 +299,7 @@
 			var free = COLOR_KEYS.filter( function ( k ) {
 				return used.indexOf( k ) === -1;
 			} );
-			groups.push( { count: groups.length ? groups[ groups.length - 1 ].count : 4, color: free[ 0 ] || COLOR_KEYS[ 0 ] } );
+			groups.push( { count: groups.length ? groups[ groups.length - 1 ].count : 4, color: free[ 0 ] || COLOR_KEYS[ 0 ], gap: 0 } );
 			structureChanged();
 			var counts = structureBox.querySelectorAll( '[data-row="' + row + '"] .cp-trim-count' );
 			if ( counts.length ) {
@@ -267,6 +323,11 @@
 	} );
 
 	structureBox.addEventListener( 'input', function ( e ) {
+		if ( e.target.classList.contains( 'cp-trim-gap-input' ) ) {
+			state.structure[ e.target.getAttribute( 'data-row' ) ][ +e.target.getAttribute( 'data-i' ) ].gap = e.target.value;
+			schedulePreview();
+			return;
+		}
 		if ( e.target.classList.contains( 'cp-trim-count' ) ) {
 			state.structure[ e.target.getAttribute( 'data-row' ) ][ +e.target.getAttribute( 'data-i' ) ].count = e.target.value;
 			var srow = e.target.closest( '.cp-trim-srow' );
@@ -296,7 +357,7 @@
 		var lines = {};
 		var max = 0;
 		rows.forEach( function ( r ) {
-			lines[ r ] = rowLines( r );
+			lines[ r ] = rowSlots( r );
 			max = Math.max( max, lines[ r ].length );
 		} );
 		var locked = view.set === 'initial' && lockInput && lockInput.checked;
@@ -329,10 +390,15 @@
 						html += '<td class="cp-sheet-empty' + first + '"></td>';
 						return;
 					}
+					if ( ! line.id ) {
+						// Case laissée vide pour aligner les groupes.
+						html += '<td class="cp-sheet-gap' + first + '"' + cellStyle( line ) + ( bi === 0 ? ' title="Case vide"' : '' ) + '></td>';
+						return;
+					}
 					if ( b.key === 'usine' ) {
-						html += '<td class="cp-sheet-cell' + first + '"' + cellStyle( line ) + '><input class="cp-sheet-input" data-kind="factory" data-id="' + line.id + '" data-col="' + ( bi * 10 + ri ) + '" value="' + esc( factory( line.id ) ) + '" inputmode="decimal" aria-label="Usine ' + line.id + '" /></td>';
+						html += '<td class="cp-sheet-cell' + first + '"' + cellStyle( line ) + '><span class="cp-sheet-lbl">' + line.id + '</span><input class="cp-sheet-input" data-kind="factory" data-id="' + line.id + '" data-col="' + ( bi * 10 + ri ) + '" value="' + esc( factory( line.id ) ) + '" inputmode="decimal" aria-label="Usine ' + line.id + '" /></td>';
 					} else if ( b.key === 'voile' ) {
-						html += '<td class="cp-sheet-cell' + first + '"' + cellStyle( line ) + '><input class="cp-sheet-input" data-kind="measure" data-id="' + line.id + '" data-col="' + ( bi * 10 + ri ) + '" value="' + esc( measure( view.set, line.id, view.side ) ) + '" inputmode="decimal" aria-label="Voile ' + line.id + '"' + ( locked ? ' readonly' : '' ) + ' /></td>';
+						html += '<td class="cp-sheet-cell' + first + '"' + cellStyle( line ) + '><span class="cp-sheet-lbl">' + line.id + '</span><input class="cp-sheet-input" data-kind="measure" data-id="' + line.id + '" data-col="' + ( bi * 10 + ri ) + '" value="' + esc( measure( view.set, line.id, view.side ) ) + '" inputmode="decimal" aria-label="Voile ' + line.id + '"' + ( locked ? ' readonly' : '' ) + ' /></td>';
 					} else {
 						html += '<td class="cp-sheet-calc ' + b.cls + first + '"' + cellStyle( line ) + ' data-calc="' + b.key + '" data-id="' + line.id + '"></td>';
 					}
@@ -709,7 +775,7 @@
 		}
 		ROW_KEYS.forEach( function ( row ) {
 			state.structure[ row ] = ( ( trim.structure && trim.structure[ row ] ) || [] ).map( function ( g, i ) {
-				return typeof g === 'object' ? { count: g.count, color: g.color } : { count: g, color: COLOR_KEYS[ i % COLOR_KEYS.length ] };
+				return typeof g === 'object' ? { count: g.count, color: g.color, gap: g.gap || 0 } : { count: g, color: COLOR_KEYS[ i % COLOR_KEYS.length ], gap: 0 };
 			} );
 		} );
 		state.factory = trim.factory || {};

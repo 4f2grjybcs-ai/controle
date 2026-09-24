@@ -54,6 +54,7 @@ Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 20
 La saisie reprend la feuille de calage habituelle de l'atelier, en plus pratique.
 
 1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe, du centre vers le bout d'aile.
+   - **Cases vides** : chaque groupe peut laisser des cases vides après ses suspentes, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement.
 2. **Feuille de calage** : un tableau par numéro de suspente avec les blocs **Mesures usine → Usine corrigée → Mesures voile → Résultat**, puis **Max / Min / Diff** (entre les rangées) et **Moyenne**.
    - En haut : **Élévateur** et **Offset** (boutons − / +), **1ère mesure / 2e mesure**, **Gauche / Droite**, dates, 1ère mesure figée.
    - *Usine corrigée = usine − élévateur + offset* · *Résultat = voile − usine corrigée*.
