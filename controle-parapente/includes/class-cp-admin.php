@@ -25,6 +25,7 @@ class CP_Admin {
 		add_action( 'pre_get_posts', array( __CLASS__, 'apply_filters' ) );
 		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 10, 2 );
 		add_action( 'wp_ajax_cp_search_previous', array( __CLASS__, 'ajax_search_previous' ) );
+		add_action( 'wp_ajax_cp_wing_preview', array( 'CP_Trim', 'ajax_preview' ) );
 	}
 
 	public static function is_screen() {
@@ -382,7 +383,7 @@ class CP_Admin {
 
 		$unit = CP_Controle::porosity_unit_label();
 		echo '<h4>' . esc_html__( 'Seuils de ce contrôle', 'controle-parapente' ) . '</h4>';
-		echo '<p class="description">' . esc_html__( 'Laisser vide pour utiliser les valeurs des réglages. Ordre de priorité : constructeur, PMA, charte.', 'controle-parapente' ) . '</p><div class="cp-grid">';
+		echo '<p class="description">' . esc_html__( 'Laisser vide pour utiliser les valeurs des réglages. Ordre de priorité : constructeur, PMA, référence de l\'atelier.', 'controle-parapente' ) . '</p><div class="cp-grid">';
 		/* translators: %s: unité */
 		self::field( 'por_alert', sprintf( __( 'Porosité — alerte (%s)', 'controle-parapente' ), $unit ), $d['por_alert'], 'number', 'step="any" placeholder="' . esc_attr( CP_Settings::get( 'porosity_alert' ) ) . '"' );
 		/* translators: %s: unité */
@@ -556,6 +557,7 @@ class CP_Admin {
 				'trim'   => array(
 					'sides'     => $d['trim']['sides'],
 					'offset'    => $d['trim']['offset'],
+					'riser_length' => $d['trim']['riser_length'],
 					'structure' => $d['trim']['structure'],
 					'factory'   => (object) $d['trim']['factory'],
 				),

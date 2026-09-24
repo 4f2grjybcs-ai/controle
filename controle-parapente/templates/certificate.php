@@ -1,6 +1,6 @@
 <?php
 /**
- * Gabarit du rapport de contrôle (structure PMA / charte FFVL ParachecK®).
+ * Gabarit du rapport de contrôle (structure du PMA Standard « Periodical Inspection of Paragliders »).
  *
  * Organisation : identification de l'atelier, synthèse (curseur d'état global et
  * interprétation des trois inspections), puis détail des inspections visuelle,
@@ -120,9 +120,6 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 					<strong class="cp-workshop-name"><?php echo esc_html( $settings['workshop_name'] ); ?></strong>
 					<?php if ( $settings['manager_name'] ) : ?>
 						<span class="cp-small"><?php echo esc_html( sprintf( __( 'Responsable : %s', 'controle-parapente' ), $settings['manager_name'] ) ); ?></span>
-					<?php endif; ?>
-					<?php if ( $settings['paracheck_member'] ) : ?>
-						<span class="cp-label-paracheck"><?php echo esc_html( trim( __( 'Atelier signataire de la charte FFVL ParachecK®', 'controle-parapente' ) . ' ' . $settings['paracheck_number'] ) ); ?></span>
 					<?php endif; ?>
 				</div>
 			</div>

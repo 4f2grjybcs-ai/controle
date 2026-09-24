@@ -454,3 +454,7 @@ body.cp-atelier {
 .cp-atelier .cp-trim-group-head td { background: color-mix( in srgb, var( --chip, #999 ) 12%, #fff ); }
 .cp-atelier .cp-stepper input { min-height: 36px; }
 .cp-atelier .cp-trim-chip .cp-trim-count { min-height: 30px; }
+
+/* Onglet mesures : la feuille de calage prend toute la largeur, le suivi passe dessous. */
+body[data-tab="mesures"] .cp-fiche-layout { grid-template-columns: 1fr; }
+body[data-tab="mesures"] .cp-fiche-side { position: static; order: 2; max-width: 520px; }

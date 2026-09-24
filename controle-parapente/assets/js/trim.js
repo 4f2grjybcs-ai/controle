@@ -1,4 +1,4 @@
-/* Contrôle Parapente — calage : structure par couleurs, mesures usine, mesures voile, résultat (offset + élévateurs). */
+/* Contrôle Parapente — calage : structure par couleurs et feuille de calage (sur le modèle du tableur de l'atelier). */
 ( function () {
 	'use strict';
 
@@ -22,24 +22,24 @@
 		structure: data.structure || {},
 		factory: data.factory || {},
 		initial: data.initial || {},
-		final: data.final || {},
-		riser: data.riser || {}
+		final: data.final || {}
 	};
 	ROW_KEYS.forEach( function ( r ) {
 		state.structure[ r ] = state.structure[ r ] || [];
 	} );
+	var view = { set: 'initial', side: 'G' };
 
 	var $ = function ( sel ) {
 		return root.querySelector( sel );
 	};
 	var structureBox = $( '.cp-trim-structure' );
-	var factoryBox = $( '.cp-trim-factory' );
-	var measuresBox = $( '.cp-trim-measures' );
-	var risersBox = $( '.cp-trim-risers' );
+	var sheetBox = $( '.cp-sheet' );
 	var summaryBox = $( '.cp-trim-summary' );
-	var resultBox = $( '.cp-trim-result' );
+	var previewBox = $( '.cp-wing-preview' );
+	var jsonInput = $( '.cp-trim-json' );
 	var sidesSelect = $( '#cp-trim-sides' );
 	var offsetInput = $( '#cp-trim-offset' );
+	var riserInput = $( '#cp-trim-riser' );
 	var lockInput = $( '#cp-trim-locked' );
 
 	/* ---------- Utilitaires ---------- */
@@ -59,12 +59,12 @@
 	}
 
 	function fmt( v ) {
-		return String( Math.round( v * 10 ) / 10 ).replace( '.', ',' );
+		return v === null ? '' : String( Math.round( v * 10 ) / 10 ).replace( '.', ',' );
 	}
 
 	function signed( v ) {
 		if ( v === null || v === undefined ) {
-			return '—';
+			return '';
 		}
 		v = Math.round( v * 10 ) / 10;
 		if ( v === 0 ) {
@@ -85,12 +85,12 @@
 		return d.getFullYear() + '-' + String( d.getMonth() + 1 ).padStart( 2, '0' ) + '-' + String( d.getDate() ).padStart( 2, '0' );
 	}
 
-	function sides() {
-		return sidesSelect && sidesSelect.value === 'one' ? { G: 'Mesure' } : { G: 'Gauche', D: 'Droite' };
+	function bothSides() {
+		return ! sidesSelect || sidesSelect.value !== 'one';
 	}
 
-	function offset() {
-		return num( offsetInput ? offsetInput.value : '' ) || 0;
+	function sideKeys() {
+		return bothSides() ? [ 'G', 'D' ] : [ 'G' ];
 	}
 
 	function hex( color ) {
@@ -105,38 +105,59 @@
 		return '<span class="cp-swatch" style="background:' + esc( hex( color ) ) + '"></span>';
 	}
 
-	function groupLabel( row, color ) {
-		return ( row === 'F' ? 'Freins' : row ) + ' · ' + colorName( color );
+	function rowShort( row ) {
+		return row === 'F' ? 'Freins' : row;
 	}
 
-	function lines() {
+	function count( g ) {
+		return Math.max( 0, Math.min( 40, parseInt( g.count, 10 ) || 0 ) );
+	}
+
+	/** Suspentes d'une rangée : [ { id, n, group, color } ]. */
+	function rowLines( row ) {
 		var list = [];
-		ROW_KEYS.forEach( function ( row ) {
-			var n = 0;
-			state.structure[ row ].forEach( function ( g, gi ) {
-				var count = Math.max( 0, Math.min( 40, parseInt( g.count, 10 ) || 0 ) );
-				for ( var k = 0; k < count; k++ ) {
-					n++;
-					list.push( { id: row + n, row: row, group: gi + 1, color: g.color } );
-				}
-			} );
+		var n = 0;
+		state.structure[ row ].forEach( function ( g, gi ) {
+			for ( var k = 0; k < count( g ); k++ ) {
+				n++;
+				list.push( { id: row + n, n: n, group: gi + 1, color: g.color } );
+			}
 		} );
 		return list;
 	}
 
-	function value( set, id, side ) {
-		if ( set === 'factory' ) {
-			return state.factory[ id ] !== undefined && state.factory[ id ] !== null ? state.factory[ id ] : '';
-		}
+	function activeRows() {
+		return ROW_KEYS.filter( function ( r ) {
+			return rowLines( r ).length > 0;
+		} );
+	}
+
+	function factory( id ) {
+		return state.factory[ id ] !== undefined && state.factory[ id ] !== null ? state.factory[ id ] : '';
+	}
+
+	function measure( set, id, side ) {
 		return state[ set ][ id ] && state[ set ][ id ][ side ] !== undefined ? state[ set ][ id ][ side ] : '';
 	}
 
-	function riser( row, side ) {
-		return state.riser[ row ] && state.riser[ row ][ side ] !== undefined ? state.riser[ row ][ side ] : '';
+	/** Usine corrigée = usine − élévateur + offset. */
+	function corrected( id ) {
+		var f = num( factory( id ) );
+		if ( f === null ) {
+			return null;
+		}
+		return f - ( num( riserInput ? riserInput.value : '' ) || 0 ) + ( num( offsetInput ? offsetInput.value : '' ) || 0 );
 	}
 
-	function input( name, val, col, extra ) {
-		return '<input type="text" inputmode="decimal" class="cp-trim-input" name="' + name + '" value="' + esc( val ) + '" data-col="' + col + '"' + ( extra || '' ) + ' />';
+	/** Résultat = voile − usine corrigée. */
+	function result( set, id, side ) {
+		var m = num( measure( set, id, side ) );
+		var c = corrected( id );
+		return m === null || c === null ? null : m - c;
+	}
+
+	function syncJson() {
+		jsonInput.value = JSON.stringify( { factory: state.factory, initial: state.initial, final: state.final } );
 	}
 
 	/* ---------- Étapes ---------- */
@@ -151,9 +172,8 @@
 		stepPanels.forEach( function ( p ) {
 			p.hidden = p.getAttribute( 'data-step-panel' ) !== name;
 		} );
-		if ( name === 'resultat' ) {
-			renderRisers();
-			updateResult();
+		if ( name === 'feuille' ) {
+			renderSheet();
 		}
 	}
 	stepButtons.forEach( function ( b ) {
@@ -169,7 +189,7 @@
 		ROW_KEYS.forEach( function ( row ) {
 			var groups = state.structure[ row ];
 			var total = groups.reduce( function ( a, g ) {
-				return a + ( parseInt( g.count, 10 ) || 0 );
+				return a + count( g );
 			}, 0 );
 			html += '<div class="cp-trim-srow' + ( row === 'F' ? ' is-brakes' : '' ) + '" data-row="' + row + '">';
 			html += '<div class="cp-trim-srow-label"><strong>' + esc( ROWS[ row ] ) + '</strong><small>' + total + ' susp.</small></div>';
@@ -190,7 +210,6 @@
 		structureBox.innerHTML = html;
 	}
 
-	// Palette de couleurs flottante.
 	var palette = document.createElement( 'div' );
 	palette.className = 'cp-trim-palette';
 	palette.hidden = true;
@@ -250,424 +269,430 @@
 	structureBox.addEventListener( 'input', function ( e ) {
 		if ( e.target.classList.contains( 'cp-trim-count' ) ) {
 			state.structure[ e.target.getAttribute( 'data-row' ) ][ +e.target.getAttribute( 'data-i' ) ].count = e.target.value;
-			// On ne redessine pas la structure pendant la saisie (garde le curseur).
 			var srow = e.target.closest( '.cp-trim-srow' );
-			var total = state.structure[ srow.getAttribute( 'data-row' ) ].reduce( function ( a, g ) {
-				return a + ( parseInt( g.count, 10 ) || 0 );
-			}, 0 );
-			srow.querySelector( 'small' ).textContent = total + ' susp.';
-			renderTables();
+			srow.querySelector( 'small' ).textContent = rowLines( srow.getAttribute( 'data-row' ) ).length + ' susp.';
+			schedulePreview();
 		}
 	} );
 
 	function structureChanged() {
 		renderStructure();
-		renderTables();
+		renderSheet();
 	}
 
-	/* ---------- 2. Mesures usine ---------- */
+	/* ---------- 2. Feuille de calage ---------- */
 
-	function renderFactory( list ) {
-		if ( ! list.length ) {
-			factoryBox.innerHTML = '<p class="cp-trim-empty">Définissez d\'abord la structure du suspentage.</p>';
-			return;
-		}
-		var html = '';
-		var currentRow = '';
-		var currentGroup = '';
-		list.forEach( function ( line ) {
-			if ( line.row !== currentRow ) {
-				if ( currentRow ) {
-					html += '</div></div></div>';
-				}
-				currentRow = line.row;
-				currentGroup = '';
-				html += '<div class="cp-trim-fblock' + ( line.row === 'F' ? ' is-brakes' : '' ) + '"><h5>' + esc( ROWS[ line.row ] ) + '</h5><div>';
-			}
-			if ( line.row + line.group !== currentGroup ) {
-				if ( currentGroup ) {
-					html += '</div>';
-				}
-				currentGroup = line.row + line.group;
-				html += '<div class="cp-trim-fgroup" style="--chip:' + esc( hex( line.color ) ) + '"><span class="cp-trim-fgroup-name">' + swatch( line.color ) + esc( colorName( line.color ) ) + '</span>';
-			}
-			html += '<label class="cp-trim-fcell"><span>' + line.id + '</span>' + input( 'cp[trim][factory][' + line.id + ']', value( 'factory', line.id ), 'factory' ) + '</label>';
-		} );
-		html += '</div></div></div>';
-		factoryBox.innerHTML = html;
+	function cellStyle( line ) {
+		return ' style="--chip:' + esc( hex( line.color ) ) + '"';
 	}
 
-	/* ---------- 3. Mesures voile ---------- */
-
-	function renderMeasures( list ) {
-		if ( ! list.length ) {
-			measuresBox.innerHTML = '<p class="cp-trim-empty">Définissez d\'abord la structure du suspentage.</p>';
-			return;
-		}
-		var sd = sides();
-		var sideKeys = Object.keys( sd );
-		var locked = lockInput && lockInput.checked;
-		var cols = 2 + sideKeys.length * 2;
-		var html = '<table class="widefat cp-trim-table"><thead><tr><th rowspan="2">Susp.</th><th rowspan="2">Usine</th>' +
-			'<th colspan="' + sideKeys.length + '" class="cp-trim-set--initial">1ère mesure</th>' +
-			'<th colspan="' + sideKeys.length + '" class="cp-trim-set--final">Mesure finale</th></tr><tr>';
-		[ 'initial', 'final' ].forEach( function ( set ) {
-			sideKeys.forEach( function ( side ) {
-				html += '<th class="cp-trim-set--' + set + '">' + ( sideKeys.length > 1 ? sd[ side ] : 'Mesurée' ) + '</th>';
-			} );
-		} );
-		html += '</tr></thead><tbody>';
-		var currentRow = '';
-		var currentGroup = '';
-		list.forEach( function ( line ) {
-			if ( line.row !== currentRow ) {
-				currentRow = line.row;
-				html += '<tr class="cp-trim-row-head' + ( line.row === 'F' ? ' is-brakes' : '' ) + '"><th colspan="' + cols + '">' + esc( ROWS[ line.row ] ) + '</th></tr>';
-			}
-			if ( line.row + line.group !== currentGroup ) {
-				currentGroup = line.row + line.group;
-				html += '<tr class="cp-trim-group-head" style="--chip:' + esc( hex( line.color ) ) + '"><td colspan="' + cols + '">' + swatch( line.color ) + esc( colorName( line.color ) ) + '</td></tr>';
-			}
-			var f = value( 'factory', line.id );
-			html += '<tr data-id="' + line.id + '"><th scope="row">' + swatch( line.color ) + line.id + '</th><td class="cp-trim-ref">' + ( f === '' ? '—' : esc( f ) ) + '</td>';
-			[ 'initial', 'final' ].forEach( function ( set ) {
-				sideKeys.forEach( function ( side ) {
-					var ro = set === 'initial' && locked ? ' readonly' : '';
-					html += '<td class="cp-trim-set--' + set + '">' + input( 'cp[trim][' + set + '][' + line.id + '][' + side + ']', value( set, line.id, side ), set + side, ro ) + '</td>';
-				} );
-			} );
-			html += '</tr>';
-		} );
-		html += '</tbody></table>';
-		measuresBox.innerHTML = html;
-	}
-
-	/* ---------- 4. Résultat ---------- */
-
-	function activeRows() {
-		return ROW_KEYS.filter( function ( r ) {
-			return state.structure[ r ].some( function ( g ) {
-				return ( parseInt( g.count, 10 ) || 0 ) > 0;
-			} );
-		} );
-	}
-
-	function renderRisers() {
-		var sd = sides();
-		var sideKeys = Object.keys( sd );
+	function renderSheet() {
 		var rows = activeRows();
 		if ( ! rows.length ) {
-			risersBox.innerHTML = '';
+			sheetBox.innerHTML = '<p class="cp-trim-empty">Définissez d\'abord la structure du suspentage (étape 1).</p>';
+			updateComputed();
 			return;
 		}
-		var html = '<table class="cp-trim-riser-table"><thead><tr><th></th>';
-		sideKeys.forEach( function ( side ) {
-			html += '<th>' + ( sideKeys.length > 1 ? sd[ side ] : 'Réglage' ) + '</th>';
+		var lines = {};
+		var max = 0;
+		rows.forEach( function ( r ) {
+			lines[ r ] = rowLines( r );
+			max = Math.max( max, lines[ r ].length );
 		} );
-		html += '</tr></thead><tbody>';
-		rows.forEach( function ( row ) {
-			html += '<tr' + ( row === 'F' ? ' class="is-brakes"' : '' ) + '><th>' + esc( row === 'F' ? 'Freins' : 'Élévateur ' + row ) + '</th>';
-			sideKeys.forEach( function ( side ) {
-				html += '<td><div class="cp-stepper" data-step="1">' +
-					'<button type="button" class="cp-step-down" aria-label="−1 mm">−</button>' +
-					'<input type="text" inputmode="decimal" class="cp-trim-riser" data-row="' + row + '" data-side="' + side + '" name="cp[trim][riser][' + row + '][' + side + ']" value="' + esc( riser( row, side ) ) + '" placeholder="0" />' +
-					'<button type="button" class="cp-step-up" aria-label="+1 mm">+</button><span class="cp-unit">mm</span></div></td>';
+		var locked = view.set === 'initial' && lockInput && lockInput.checked;
+		var blocks = [
+			{ key: 'usine', label: 'Mesures usine', cls: 'is-factory' },
+			{ key: 'corr', label: 'Usine corrigée', cls: 'is-corr' },
+			{ key: 'voile', label: 'Mesures voile' + ( bothSides() ? ' — ' + ( view.side === 'G' ? 'gauche' : 'droite' ) : '' ), cls: 'is-measure' },
+			{ key: 'res', label: 'Résultat', cls: 'is-result' }
+		];
+
+		var html = '<table class="cp-sheet-table"><thead><tr><th class="cp-sheet-n" rowspan="2">N°</th>';
+		blocks.forEach( function ( b ) {
+			html += '<th colspan="' + rows.length + '" class="cp-sheet-block ' + b.cls + '">' + esc( b.label ) + '</th>';
+		} );
+		html += '<th colspan="3" class="cp-sheet-block is-diff">Différence</th><th rowspan="2" class="cp-sheet-block is-mean">Moyenne</th></tr><tr>';
+		blocks.forEach( function ( b ) {
+			rows.forEach( function ( r ) {
+				html += '<th class="' + b.cls + '">' + rowShort( r ) + '</th>';
 			} );
-			html += '</tr>';
 		} );
-		html += '</tbody></table>';
-		risersBox.innerHTML = html;
-	}
+		html += '<th class="is-diff">Max</th><th class="is-diff">Min</th><th class="is-diff">Diff</th></tr></thead><tbody>';
 
-	function analyze() {
-		var sideKeys = Object.keys( sides() );
-		var off = offset();
-		var groups = {};
-		var order = [];
-		var perLine = [];
-
-		lines().forEach( function ( line ) {
-			var factory = num( value( 'factory', line.id ) );
-			var entry = { line: line, factory: factory, sides: {} };
-			sideKeys.forEach( function ( side ) {
-				var rs = num( riser( line.row, side ) ) || 0;
-				var key = line.row + '|' + line.group + '|' + side;
-				if ( ! groups[ key ] ) {
-					groups[ key ] = { row: line.row, group: line.group, color: line.color, side: side, count: 0, riser: rs, initial: [], final: [], result: [], base: [] };
-					order.push( key );
-				}
-				groups[ key ].count++;
-				var s = {};
-				[ 'initial', 'final' ].forEach( function ( set ) {
-					var raw = num( value( set, line.id, side ) );
-					s[ set ] = raw === null || factory === null ? null : raw + off - factory;
-					if ( s[ set ] !== null ) {
-						groups[ key ][ set ].push( s[ set ] );
+		for ( var i = 0; i < max; i++ ) {
+			html += '<tr data-n="' + ( i + 1 ) + '"><th class="cp-sheet-n">' + ( i + 1 ) + '</th>';
+			blocks.forEach( function ( b, bi ) {
+				rows.forEach( function ( r, ri ) {
+					var line = lines[ r ][ i ];
+					var first = ri === 0 ? ' is-first' : '';
+					if ( ! line ) {
+						html += '<td class="cp-sheet-empty' + first + '"></td>';
+						return;
+					}
+					if ( b.key === 'usine' ) {
+						html += '<td class="cp-sheet-cell' + first + '"' + cellStyle( line ) + '><input class="cp-sheet-input" data-kind="factory" data-id="' + line.id + '" data-col="' + ( bi * 10 + ri ) + '" value="' + esc( factory( line.id ) ) + '" inputmode="decimal" aria-label="Usine ' + line.id + '" /></td>';
+					} else if ( b.key === 'voile' ) {
+						html += '<td class="cp-sheet-cell' + first + '"' + cellStyle( line ) + '><input class="cp-sheet-input" data-kind="measure" data-id="' + line.id + '" data-col="' + ( bi * 10 + ri ) + '" value="' + esc( measure( view.set, line.id, view.side ) ) + '" inputmode="decimal" aria-label="Voile ' + line.id + '"' + ( locked ? ' readonly' : '' ) + ' /></td>';
+					} else {
+						html += '<td class="cp-sheet-calc ' + b.cls + first + '"' + cellStyle( line ) + ' data-calc="' + b.key + '" data-id="' + line.id + '"></td>';
 					}
 				} );
-				var base = s.final !== null ? s.final : s.initial;
-				s.measured = base === null ? null : base + factory;
-				s.base = base;
-				s.result = base === null ? null : base + rs;
-				if ( base !== null ) {
-					groups[ key ].base.push( base );
-					groups[ key ].result.push( s.result );
-				}
-				entry.sides[ side ] = s;
 			} );
-			perLine.push( entry );
-		} );
-
-		function stats( devs ) {
-			if ( ! devs.length ) {
-				return { n: 0, mean: null, max: null };
-			}
-			return {
-				n: devs.length,
-				mean: devs.reduce( function ( a, b ) {
-					return a + b;
-				}, 0 ) / devs.length,
-				max: devs.reduce( function ( a, b ) {
-					return Math.abs( b ) > Math.abs( a ) ? b : a;
-				} )
-			};
+			html += '<td class="cp-sheet-calc is-diff is-first" data-stat="max"></td><td class="cp-sheet-calc is-diff" data-stat="min"></td><td class="cp-sheet-calc is-diff" data-stat="diff"></td><td class="cp-sheet-calc is-mean is-first" data-stat="mean"></td></tr>';
 		}
 
-		return {
-			lines: perLine,
-			groups: order.map( function ( key ) {
-				var g = groups[ key ];
-				[ 'initial', 'final', 'result', 'base' ].forEach( function ( set ) {
-					g[ set ] = stats( g[ set ] );
-				} );
-				g.correction = g.result.mean === null ? null : -g.result.mean;
-				g.level = level( g.result.max );
-				return g;
-			} )
-		};
+		// Moyennes par rangée (dernière ligne).
+		html += '</tbody><tfoot><tr><th class="cp-sheet-n">Moy.</th>';
+		blocks.forEach( function ( b ) {
+			rows.forEach( function ( r, ri ) {
+				html += '<td class="' + ( ri === 0 ? 'is-first ' : '' ) + ( b.key === 'res' ? 'cp-sheet-calc is-result" data-rowmean="' + r : '' ) + '"></td>';
+			} );
+		} );
+		html += '<td colspan="4"></td></tr></tfoot></table>';
+		sheetBox.innerHTML = html;
+		updateComputed();
 	}
 
-	function updateResult() {
-		var result = analyze();
-		var sd = sides();
-		var sideKeys = Object.keys( sd );
-		var both = sideKeys.length > 1;
+	function updateComputed() {
+		// Cellules calculées.
+		sheetBox.querySelectorAll( '[data-calc]' ).forEach( function ( td ) {
+			var id = td.getAttribute( 'data-id' );
+			var v;
+			if ( td.getAttribute( 'data-calc' ) === 'corr' ) {
+				v = corrected( id );
+				td.textContent = fmt( v );
+			} else {
+				v = result( view.set, id, view.side );
+				td.textContent = signed( v );
+				td.classList.toggle( 'lvl-ok', level( v ) === 'ok' );
+				td.classList.toggle( 'lvl-bad', level( v ) === 'bad' );
+			}
+		} );
 
-		if ( ! result.groups.some( function ( g ) {
-			return g.result.n;
-		} ) ) {
-			summaryBox.innerHTML = '<p class="cp-trim-empty">Saisissez les mesures usine et les mesures voile pour voir le résultat.</p>';
-			resultBox.innerHTML = '';
+		// Différence et moyenne par numéro de suspente (entre les rangées).
+		sheetBox.querySelectorAll( 'tbody tr[data-n]' ).forEach( function ( tr ) {
+			var values = [];
+			tr.querySelectorAll( '[data-calc="res"]' ).forEach( function ( td ) {
+				var v = result( view.set, td.getAttribute( 'data-id' ), view.side );
+				if ( v !== null ) {
+					values.push( v );
+				}
+			} );
+			var stats = { max: '', min: '', diff: '', mean: '' };
+			if ( values.length ) {
+				var mx = Math.max.apply( null, values );
+				var mn = Math.min.apply( null, values );
+				stats = {
+					max: signed( mx ),
+					min: signed( mn ),
+					diff: fmt( mx - mn ),
+					mean: signed( values.reduce( function ( a, b ) {
+						return a + b;
+					}, 0 ) / values.length )
+				};
+			}
+			Object.keys( stats ).forEach( function ( k ) {
+				tr.querySelector( '[data-stat="' + k + '"]' ).textContent = stats[ k ];
+			} );
+		} );
+
+		// Moyenne des résultats par rangée.
+		sheetBox.querySelectorAll( '[data-rowmean]' ).forEach( function ( td ) {
+			var values = rowLines( td.getAttribute( 'data-rowmean' ) ).map( function ( l ) {
+				return result( view.set, l.id, view.side );
+			} ).filter( function ( v ) {
+				return v !== null;
+			} );
+			var m = values.length ? values.reduce( function ( a, b ) {
+				return a + b;
+			}, 0 ) / values.length : null;
+			td.textContent = signed( m );
+			td.classList.toggle( 'lvl-ok', level( m ) === 'ok' );
+			td.classList.toggle( 'lvl-bad', level( m ) === 'bad' );
+		} );
+
+		renderSummary();
+		syncJson();
+		schedulePreview();
+	}
+
+	/* ---------- Écart moyen par groupe ---------- */
+
+	function mean( values ) {
+		return values.length ? values.reduce( function ( a, b ) {
+			return a + b;
+		}, 0 ) / values.length : null;
+	}
+
+	function renderSummary() {
+		var sides = sideKeys();
+		var both = sides.length > 1;
+		var rows = activeRows();
+		if ( ! rows.length ) {
+			summaryBox.innerHTML = '';
 			return;
 		}
-
-		// Décalage par groupe.
-		var html = '<table class="widefat cp-trim-summary-table"><thead><tr><th>Groupe</th>' + ( both ? '<th>Côté</th>' : '' ) +
-			'<th>Susp.</th><th>Écart moy. 1ère</th><th>Écart moy. finale</th><th>Élévateur</th><th>Résultat moyen</th><th>Écart max</th><th>Reste à corriger</th><th>État</th></tr></thead><tbody>';
-		result.groups.forEach( function ( g ) {
-			html += '<tr class="' + ( g.row === 'F' ? 'is-brakes' : '' ) + '" style="--chip:' + esc( hex( g.color ) ) + '">' +
-				'<td class="cp-trim-gname">' + swatch( g.color ) + esc( groupLabel( g.row, g.color ) ) + '</td>' +
-				( both ? '<td>' + sd[ g.side ] + '</td>' : '' ) +
-				'<td>' + g.result.n + ' / ' + g.count + '</td>' +
-				'<td class="lvl-' + level( g.initial.mean ) + '">' + signed( g.initial.mean ) + '</td>' +
-				'<td class="lvl-' + level( g.final.mean ) + '">' + signed( g.final.mean ) + '</td>' +
-				'<td>' + ( g.riser ? signed( g.riser ) : '0' ) + '</td>' +
-				'<td class="cp-trim-strong lvl-' + level( g.result.mean ) + '">' + signed( g.result.mean ) + '</td>' +
-				'<td class="lvl-' + g.level + '">' + signed( g.result.max ) + '</td>' +
-				'<td><strong>' + signed( g.correction ) + '</strong></td>' +
-				'<td><span class="cp-trim-state cp-trim-state--' + ( g.level || 'none' ) + '">' + ( g.level === 'ok' ? 'Conforme' : ( g.level === 'bad' ? 'Hors tolérance' : '—' ) ) + '</span></td></tr>';
-		} );
-		html += '</tbody></table>';
-		summaryBox.innerHTML = html;
-
-		// Détail par suspente.
-		var cols = 2 + sideKeys.length * 3;
-		html = '<table class="widefat cp-trim-table cp-trim-result-table"><thead><tr><th rowspan="2">Susp.</th><th rowspan="2">Usine</th>';
-		sideKeys.forEach( function ( side ) {
-			html += '<th colspan="3">' + ( both ? sd[ side ] : 'Mesure' ) + '</th>';
-		} );
-		html += '</tr><tr>';
-		sideKeys.forEach( function () {
-			html += '<th>Mesurée + offset</th><th>Écart</th><th>Avec élévateur</th>';
+		var html = '<table class="cp-sheet-summary"><thead><tr><th>Groupe</th>';
+		sides.forEach( function ( side ) {
+			var label = both ? ( side === 'G' ? ' G' : ' D' ) : '';
+			html += '<th>1ère' + label + '</th><th>2e' + label + '</th>';
 		} );
 		html += '</tr></thead><tbody>';
-		var currentRow = '';
-		var currentGroup = '';
-		result.lines.forEach( function ( entry ) {
-			var line = entry.line;
-			if ( line.row !== currentRow ) {
-				currentRow = line.row;
-				html += '<tr class="cp-trim-row-head' + ( line.row === 'F' ? ' is-brakes' : '' ) + '"><th colspan="' + cols + '">' + esc( ROWS[ line.row ] ) + '</th></tr>';
-			}
-			if ( line.row + line.group !== currentGroup ) {
-				currentGroup = line.row + line.group;
-				html += '<tr class="cp-trim-group-head" style="--chip:' + esc( hex( line.color ) ) + '"><td colspan="' + cols + '">' + swatch( line.color ) + esc( colorName( line.color ) ) + '</td></tr>';
-			}
-			html += '<tr><th scope="row">' + swatch( line.color ) + line.id + '</th><td class="cp-trim-ref">' + ( entry.factory === null ? '—' : fmt( entry.factory ) ) + '</td>';
-			sideKeys.forEach( function ( side ) {
-				var s = entry.sides[ side ];
-				html += '<td>' + ( s.measured === null ? '—' : fmt( s.measured ) ) + '</td>' +
-					'<td class="lvl-' + level( s.base ) + '">' + signed( s.base ) + '</td>' +
-					'<td class="cp-trim-strong lvl-' + level( s.result ) + '">' + signed( s.result ) + '</td>';
+		var any = false;
+		rows.forEach( function ( row ) {
+			state.structure[ row ].forEach( function ( g, gi ) {
+				var ids = rowLines( row ).filter( function ( l ) {
+					return l.group === gi + 1;
+				} ).map( function ( l ) {
+					return l.id;
+				} );
+				if ( ! ids.length ) {
+					return;
+				}
+				html += '<tr style="--chip:' + esc( hex( g.color ) ) + '"><td class="cp-sheet-gname">' + swatch( g.color ) + esc( rowShort( row ) + ' · ' + colorName( g.color ) ) + '</td>';
+				sides.forEach( function ( side ) {
+					[ 'initial', 'final' ].forEach( function ( set ) {
+						var m = mean( ids.map( function ( id ) {
+							return result( set, id, side );
+						} ).filter( function ( v ) {
+							return v !== null;
+						} ) );
+						if ( m !== null ) {
+							any = true;
+						}
+						var current = set === view.set && side === view.side ? ' is-current' : '';
+						html += '<td class="lvl-' + level( m ) + current + '">' + ( m === null ? '·' : signed( m ) ) + '</td>';
+					} );
+				} );
+				html += '</tr>';
 			} );
-			html += '</tr>';
 		} );
 		html += '</tbody></table>';
-		resultBox.innerHTML = html;
+		summaryBox.innerHTML = any ? html : '<p class="cp-trim-empty">Saisissez les mesures pour voir les écarts par groupe.</p>';
 	}
 
-	function renderTables() {
-		var list = lines();
-		renderFactory( list );
-		renderMeasures( list );
-		renderRisers();
-		updateResult();
+	/* ---------- Aperçu du rapport client (dessin généré par le serveur) ---------- */
+
+	var previewTimer = null;
+	var previewSeq = 0;
+	function schedulePreview() {
+		clearTimeout( previewTimer );
+		previewTimer = setTimeout( loadPreview, 600 );
 	}
 
-	/* ---------- Saisie ---------- */
+	function loadPreview() {
+		var url = root.getAttribute( 'data-preview-url' );
+		if ( ! url || ! window.fetch ) {
+			return;
+		}
+		var seq = ++previewSeq;
+		var body = new FormData();
+		body.append( 'action', 'cp_wing_preview' );
+		body.append( 'nonce', root.getAttribute( 'data-preview-nonce' ) );
+		body.append( 'trim', JSON.stringify( {
+			sides: sidesSelect ? sidesSelect.value : 'both',
+			offset: offsetInput ? offsetInput.value : '',
+			riser_length: riserInput ? riserInput.value : '',
+			structure: state.structure,
+			factory: state.factory,
+			initial: state.initial,
+			final: state.final
+		} ) );
+		fetch( url, { method: 'POST', body: body, credentials: 'same-origin' } )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( json ) {
+				if ( seq !== previewSeq || ! json || ! json.success ) {
+					return;
+				}
+				previewBox.innerHTML = json.data || '<p class="cp-trim-empty">L\'aperçu apparaît dès les premières mesures.</p>';
+			} )
+			.catch( function () {} );
+	}
 
-	function onValueInput( e ) {
+	/* ---------- Saisie dans la feuille ---------- */
+
+	sheetBox.addEventListener( 'input', function ( e ) {
 		var el = e.target;
-		if ( el === offsetInput ) {
-			updateResult();
+		if ( ! el.classList.contains( 'cp-sheet-input' ) ) {
 			return;
 		}
-		if ( el.classList.contains( 'cp-trim-riser' ) ) {
-			var row = el.getAttribute( 'data-row' );
-			state.riser[ row ] = state.riser[ row ] || {};
-			state.riser[ row ][ el.getAttribute( 'data-side' ) ] = el.value;
-			updateResult();
+		setValue( el.getAttribute( 'data-kind' ), el.getAttribute( 'data-id' ), el.value );
+		updateComputed();
+	} );
+
+	function setValue( kind, id, v ) {
+		if ( kind === 'factory' ) {
+			state.factory[ id ] = v;
 			return;
 		}
-		if ( ! el.classList.contains( 'cp-trim-input' ) ) {
+		state[ view.set ][ id ] = state[ view.set ][ id ] || {};
+		state[ view.set ][ id ][ view.side ] = v;
+		var dateInput = $( view.set === 'initial' ? '#cp-trim-initial-date' : '#cp-trim-final-date' );
+		if ( dateInput && ! dateInput.value && v !== '' ) {
+			dateInput.value = today();
+		}
+	}
+
+	function inputsByCol( col ) {
+		return Array.prototype.slice.call( sheetBox.querySelectorAll( '.cp-sheet-input[data-col="' + col + '"]' ) );
+	}
+
+	function focusCell( el ) {
+		if ( el ) {
+			el.focus();
+			el.select();
+		}
+	}
+
+	// Navigation au clavier comme dans un tableur.
+	sheetBox.addEventListener( 'keydown', function ( e ) {
+		var el = e.target;
+		if ( ! el.classList.contains( 'cp-sheet-input' ) ) {
 			return;
 		}
 		var col = el.getAttribute( 'data-col' );
-		if ( col === 'factory' ) {
-			state.factory[ el.name.match( /\[factory\]\[([A-Z]\d+)\]/ )[ 1 ] ] = el.value;
-			renderMeasuresRefs();
-		} else {
-			var id = el.closest( 'tr' ).getAttribute( 'data-id' );
-			var set = col.indexOf( 'initial' ) === 0 ? 'initial' : 'final';
-			var side = col.slice( set.length );
-			state[ set ][ id ] = state[ set ][ id ] || {};
-			state[ set ][ id ][ side ] = el.value;
-			var dateInput = $( set === 'initial' ? '#cp-trim-initial-date' : '#cp-trim-final-date' );
-			if ( dateInput && ! dateInput.value && el.value !== '' ) {
-				dateInput.value = today();
-			}
-		}
-		updateResult();
-	}
+		var colCells = inputsByCol( col );
+		var idx = colCells.indexOf( el );
+		var tr = el.closest( 'tr' );
+		var rowCells = Array.prototype.slice.call( tr.querySelectorAll( '.cp-sheet-input' ) );
+		var ri = rowCells.indexOf( el );
 
-	// Met à jour la colonne « Usine » des mesures voile sans redessiner (garde le curseur).
-	function renderMeasuresRefs() {
-		measuresBox.querySelectorAll( 'tr[data-id]' ).forEach( function ( tr ) {
-			var f = value( 'factory', tr.getAttribute( 'data-id' ) );
-			tr.querySelector( '.cp-trim-ref' ).textContent = f === '' ? '—' : f;
-		} );
-	}
-
-	root.addEventListener( 'input', onValueInput );
-
-	// Entrée : case suivante dans la même colonne (et empêche l'envoi du formulaire).
-	root.addEventListener( 'keydown', function ( e ) {
-		if ( e.key !== 'Enter' || ! e.target.matches( '.cp-trim-input, .cp-trim-riser, .cp-trim-count, #cp-trim-offset' ) ) {
-			return;
-		}
-		e.preventDefault();
-		if ( ! e.target.classList.contains( 'cp-trim-input' ) ) {
-			return;
-		}
-		var col = e.target.getAttribute( 'data-col' );
-		var all = Array.prototype.slice.call( e.target.closest( '[data-step-panel]' ).querySelectorAll( '.cp-trim-input[data-col="' + col + '"]' ) );
-		var next = all[ all.indexOf( e.target ) + ( e.shiftKey ? -1 : 1 ) ];
-		if ( next ) {
-			next.focus();
-			next.select();
+		if ( e.key === 'Enter' || e.key === 'ArrowDown' ) {
+			e.preventDefault();
+			focusCell( colCells[ idx + ( e.shiftKey && e.key === 'Enter' ? -1 : 1 ) ] );
+		} else if ( e.key === 'ArrowUp' ) {
+			e.preventDefault();
+			focusCell( colCells[ idx - 1 ] );
+		} else if ( e.key === 'ArrowRight' && el.selectionEnd === el.value.length ) {
+			e.preventDefault();
+			focusCell( rowCells[ ri + 1 ] );
+		} else if ( e.key === 'ArrowLeft' && el.selectionStart === 0 ) {
+			e.preventDefault();
+			focusCell( rowCells[ ri - 1 ] );
 		}
 	} );
 
-	// Boutons − / + (offset et élévateurs).
+	// Coller une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
+	sheetBox.addEventListener( 'paste', function ( e ) {
+		var el = e.target;
+		if ( ! el.classList.contains( 'cp-sheet-input' ) || el.readOnly ) {
+			return;
+		}
+		var text = ( e.clipboardData || window.clipboardData ).getData( 'text' );
+		if ( ! /[\t\n]/.test( text.trim() ) ) {
+			return;
+		}
+		e.preventDefault();
+		var lines = text.replace( /\r/g, '' ).replace( /\n$/, '' ).split( '\n' );
+		var col = el.getAttribute( 'data-col' );
+		var trs = Array.prototype.slice.call( sheetBox.querySelectorAll( 'tbody tr' ) );
+		var t0 = trs.indexOf( el.closest( 'tr' ) );
+		lines.forEach( function ( line, li ) {
+			var tr = trs[ t0 + li ];
+			var base = tr ? tr.querySelector( '.cp-sheet-input[data-col="' + col + '"]' ) : null;
+			if ( ! base ) {
+				return;
+			}
+			// Colonne de départ, puis cellules suivantes de la ligne pour les données sur plusieurs colonnes.
+			var cells = Array.prototype.slice.call( tr.querySelectorAll( '.cp-sheet-input' ) );
+			var start = cells.indexOf( base );
+			line.split( '\t' ).forEach( function ( v, ci ) {
+				var target = cells[ start + ci ];
+				if ( target && ! target.readOnly ) {
+					var clean = v.trim().replace( ',', '.' ).replace( /[^0-9.\-]/g, '' );
+					target.value = clean;
+					setValue( target.getAttribute( 'data-kind' ), target.getAttribute( 'data-id' ), clean );
+				}
+			} );
+		} );
+		updateComputed();
+	} );
+
+	// Boutons 1ère / 2e mesure et gauche / droite.
+	root.querySelectorAll( '.cp-seg' ).forEach( function ( seg ) {
+		seg.addEventListener( 'click', function ( e ) {
+			var btn = e.target.closest( '[data-value]' );
+			if ( ! btn ) {
+				return;
+			}
+			view[ seg.getAttribute( 'data-switch' ) ] = btn.getAttribute( 'data-value' );
+			renderSwitches();
+			renderSheet();
+		} );
+	} );
+
+	function renderSwitches() {
+		if ( ! bothSides() ) {
+			view.side = 'G';
+		}
+		root.querySelectorAll( '.cp-seg' ).forEach( function ( seg ) {
+			var key = seg.getAttribute( 'data-switch' );
+			seg.hidden = key === 'side' && ! bothSides();
+			seg.querySelectorAll( '[data-value]' ).forEach( function ( b ) {
+				b.classList.toggle( 'is-active', b.getAttribute( 'data-value' ) === view[ key ] );
+			} );
+		} );
+	}
+
+	// Boutons − / + (élévateur et offset).
 	root.addEventListener( 'click', function ( e ) {
 		var btn = e.target.closest( '.cp-step-up, .cp-step-down' );
 		if ( ! btn ) {
 			return;
 		}
-		var stepper = btn.closest( '.cp-stepper' );
-		var field = stepper.querySelector( 'input' );
-		var step = parseFloat( stepper.getAttribute( 'data-step' ) ) || 1;
-		if ( e.shiftKey ) {
-			step *= 5;
-		}
+		var field = btn.closest( '.cp-stepper' ).querySelector( 'input' );
+		var step = e.shiftKey ? 5 : 1;
 		var v = ( num( field.value ) || 0 ) + ( btn.classList.contains( 'cp-step-up' ) ? step : -step );
 		v = Math.round( v * 10 ) / 10;
 		field.value = v === 0 ? '' : String( v );
-		field.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+		updateComputed();
 	} );
-
-	// Proposer le réglage : ramène l'écart moyen de chaque rangée (et côté) à 0.
-	$( '.cp-trim-suggest' ).addEventListener( 'click', function () {
-		var result = analyze();
-		var sums = {};
-		result.lines.forEach( function ( entry ) {
-			Object.keys( entry.sides ).forEach( function ( side ) {
-				var base = entry.sides[ side ].base;
-				if ( base === null ) {
-					return;
+	[ offsetInput, riserInput ].forEach( function ( el ) {
+		if ( el ) {
+			el.addEventListener( 'input', updateComputed );
+			el.addEventListener( 'keydown', function ( e ) {
+				if ( e.key === 'Enter' ) {
+					e.preventDefault();
 				}
-				var key = entry.line.row + '|' + side;
-				sums[ key ] = sums[ key ] || { total: 0, n: 0 };
-				sums[ key ].total += base;
-				sums[ key ].n++;
 			} );
-		} );
-		Object.keys( sums ).forEach( function ( key ) {
-			var parts = key.split( '|' );
-			var v = -Math.round( sums[ key ].total / sums[ key ].n );
-			state.riser[ parts[ 0 ] ] = state.riser[ parts[ 0 ] ] || {};
-			state.riser[ parts[ 0 ] ][ parts[ 1 ] ] = v === 0 ? '' : String( v );
-		} );
-		renderRisers();
-		updateResult();
-	} );
-
-	$( '.cp-trim-reset' ).addEventListener( 'click', function () {
-		state.riser = {};
-		renderRisers();
-		updateResult();
+		}
 	} );
 
 	if ( sidesSelect ) {
-		sidesSelect.addEventListener( 'change', renderTables );
+		sidesSelect.addEventListener( 'change', function () {
+			renderSwitches();
+			renderSheet();
+		} );
 	}
 	if ( lockInput ) {
-		lockInput.addEventListener( 'change', function () {
-			renderMeasures( lines() );
-		} );
+		lockInput.addEventListener( 'change', renderSheet );
 	}
 
 	$( '.cp-trim-copy' ).addEventListener( 'click', function () {
-		var sideKeys = Object.keys( sides() );
-		lines().forEach( function ( line ) {
-			sideKeys.forEach( function ( side ) {
-				var init = value( 'initial', line.id, side );
-				if ( init !== '' && value( 'final', line.id, side ) === '' ) {
-					state.final[ line.id ] = state.final[ line.id ] || {};
-					state.final[ line.id ][ side ] = init;
-				}
+		ROW_KEYS.forEach( function ( row ) {
+			rowLines( row ).forEach( function ( line ) {
+				sideKeys().forEach( function ( side ) {
+					var init = measure( 'initial', line.id, side );
+					if ( init !== '' && measure( 'final', line.id, side ) === '' ) {
+						state.final[ line.id ] = state.final[ line.id ] || {};
+						state.final[ line.id ][ side ] = init;
+					}
+				} );
 			} );
 		} );
 		var dateInput = $( '#cp-trim-final-date' );
 		if ( dateInput && ! dateInput.value ) {
 			dateInput.value = today();
 		}
-		renderMeasures( lines() );
-		updateResult();
+		view.set = 'final';
+		renderSwitches();
+		renderSheet();
 	} );
 
 	/**
-	 * Charge la structure et les cotes usine d'un contrôle précédent (même modèle d'aile).
+	 * Charge la structure, les cotes usine, l'élévateur et l'offset d'un contrôle précédent (même modèle d'aile).
 	 */
 	window.cpTrimLoad = function ( trim ) {
 		if ( ! trim ) {
@@ -676,8 +701,11 @@
 		if ( trim.sides && sidesSelect ) {
 			sidesSelect.value = trim.sides;
 		}
-		if ( offsetInput && trim.offset !== undefined && trim.offset !== '' ) {
-			offsetInput.value = trim.offset;
+		if ( offsetInput && trim.offset !== undefined ) {
+			offsetInput.value = trim.offset || '';
+		}
+		if ( riserInput && trim.riser_length !== undefined ) {
+			riserInput.value = trim.riser_length || '';
 		}
 		ROW_KEYS.forEach( function ( row ) {
 			state.structure[ row ] = ( ( trim.structure && trim.structure[ row ] ) || [] ).map( function ( g, i ) {
@@ -685,6 +713,7 @@
 			} );
 		} );
 		state.factory = trim.factory || {};
+		renderSwitches();
 		structureChanged();
 	};
 
@@ -694,7 +723,13 @@
 		} );
 	};
 
+	// Dernière mesure saisie affichée par défaut.
+	if ( Object.keys( state.final ).length ) {
+		view.set = 'final';
+	}
+	syncJson();
 	renderStructure();
-	renderTables();
+	renderSwitches();
 	showStep( root.getAttribute( 'data-step' ) || 'structure' );
+	schedulePreview();
 } )();

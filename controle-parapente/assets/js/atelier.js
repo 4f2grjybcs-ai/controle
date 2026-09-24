@@ -35,6 +35,7 @@
 		if ( tabInput ) {
 			tabInput.value = name;
 		}
+		document.body.setAttribute( 'data-tab', name );
 		if ( name === 'rapport' ) {
 			var frame = document.querySelector( '.cp-report-frame' );
 			if ( frame && ! frame.getAttribute( 'src' ) ) {

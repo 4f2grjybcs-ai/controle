@@ -30,20 +30,20 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 - **E-mails** : nouvelle demande (atelier + client), changement de statut (optionnel, case à cocher), **rappel automatique** X jours avant l'échéance du prochain contrôle (un seul rappel par échéance, pas de rappel si la même aile a déjà un contrôle plus récent).
 - **Réglages** : coordonnées de l'atelier, n° d'agrément, préfixe des références, validité d'un contrôle (24 mois par défaut), délai de rappel, seuils de porosité, tolérance de calage, textes du formulaire et du certificat.
 
-## Normes : PMA et charte FFVL ParachecK®
+## Normes
 
-Le rapport suit la structure demandée par la charte FFVL ParachecK® (V3.01) et le PMA Standard « Periodical Inspection of Paragliders » (V 2024.12.1) :
+Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 2024.12.1) et les recommandations en vigueur pour les ateliers de contrôle :
 
-- identification de l'atelier : nom, responsable, n° de police d'assurance RC pro, mention « signataire ParachecK » ;
+- identification de l'atelier : nom, responsable, n° de police d'assurance RC pro ;
 - **type d'inspection** (révision périodique, intermédiaire, basique, mécanique, géométrique, visuelle/incident) : les tests non inclus apparaissent **« Non réalisé »**, avec la préconisation du constructeur en commentaire ;
 - **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf → Réforme), uniquement après une révision périodique complète ; aucun pourcentage d'usure ni durée de vie restante ;
 - **porosité en l/m²/min** (ou secondes) : chaque point avec sa position, minimum, maximum, moyenne, valeurs d'alerte et de réforme ;
 - **déchirure** (Bettsomètre, en g) et **résistance des suspentes** par étage (rupture en daN et seuil minimum) ;
 - **calage** : longueurs mesurées sous la tension indiquée (5 daN selon le PMA) ;
-- origine des seuils (constructeur → PMA → charte), modifiable pour chaque contrôle ;
+- origine des seuils (constructeur → PMA → référence de l'atelier), modifiable pour chaque contrôle ;
 - instruments de mesure et dates d'étalonnage (alerte dans l'atelier si l'étalonnage a plus de 12 mois).
 
-> Les valeurs par défaut (seuils, listes, types d'inspection) sont une base de travail : vérifiez-les avec les textes officiels de la charte ParachecK et du standard PMA, et ajustez-les dans *Contrôles → Réglages*.
+> Les valeurs par défaut (seuils, listes, types d'inspection) sont une base de travail : vérifiez-les avec les textes officiels (standard PMA, recommandations fédérales), et ajustez-les dans *Contrôles → Réglages*.
 
 ## Réglages
 
@@ -51,15 +51,16 @@ Le rapport suit la structure demandée par la charte FFVL ParachecK® (V3.01) et
 
 ## Calage
 
-1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe. Les suspentes sont numérotées A1, A2… dans l'ordre des groupes.
-2. **Côtés** : gauche + droite, ou un seul côté.
-3. **Offset de mesure** (mm) : ajouté à toutes les mesures, 1ère et finale (correction du banc, maillons, tension…).
-4. **1ère mesure** : saisissez les cotes usine et les longueurs brutes lues sur le banc (Entrée = case suivante dans la colonne). Enregistrez ; cochez « 1ère mesure figée » pour ne plus pouvoir la modifier.
-5. Travaillez sur le suspentage, puis faites la **mesure finale** (le bouton « Copier la 1ère mesure » pré-remplit les cases non retouchées).
-6. **Résultat** : case **offset** et cases **élévateur** (A, B, C, D, freins, gauche/droite) avec boutons − / + ; « Proposer le réglage » calcule la valeur qui ramène l'écart moyen de chaque rangée à 0.
-7. Le **tableau des décalages par groupe** donne pour chaque groupe et chaque côté : écart moyen à la 1ère mesure, **correction suggérée**, écart moyen final, ajustement réellement réalisé, écart maximum et état (conforme / hors tolérance).
+La saisie reprend la feuille de calage habituelle de l'atelier, en plus pratique.
 
-Écart = mesure brute + offset − cote usine. Les deux tableaux (par groupe et par suspente) figurent sur la fiche imprimable.
+1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe, du centre vers le bout d'aile.
+2. **Feuille de calage** : un tableau par numéro de suspente avec les blocs **Mesures usine → Usine corrigée → Mesures voile → Résultat**, puis **Max / Min / Diff** (entre les rangées) et **Moyenne**.
+   - En haut : **Élévateur** et **Offset** (boutons − / +), **1ère mesure / 2e mesure**, **Gauche / Droite**, dates, 1ère mesure figée.
+   - *Usine corrigée = usine − élévateur + offset* · *Résultat = voile − usine corrigée*.
+   - Flèches et Entrée pour se déplacer ; collez une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
+   - Sous la feuille : l'écart moyen par groupe (1ère et 2e mesure, gauche et droite) et l'**aperçu du dessin client**, mis à jour pendant la saisie.
+
+**Rapport client** : uniquement un **dessin de l'aile vue de dessus** ; chaque groupe y est placé sur ses points d'accroche avec son écart moyen (après intervention, et la valeur avant en petit), vert dans la tolérance, rouge au-delà. Les tableaux détaillés restent sur la fiche atelier imprimée.
 
 ## Installation
 

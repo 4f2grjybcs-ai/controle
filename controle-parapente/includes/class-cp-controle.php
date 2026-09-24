@@ -263,6 +263,8 @@ class CP_Controle {
 		$data = get_post_meta( $post_id, self::META_DATA, true );
 		$data = wp_parse_args( is_array( $data ) ? $data : array(), self::defaults() );
 		$data['trim'] = CP_Trim::normalize( $data['trim'] );
+		// Anciennes clés de type d'inspection (nom de label retiré).
+		$data['inspection_type'] = preg_replace( '/-paracheck$/', '', (string) $data['inspection_type'] );
 
 		$data['reference'] = (string) get_post_meta( $post_id, self::META_REFERENCE, true );
 		$data['status']    = (string) get_post_meta( $post_id, self::META_STATUS, true );

@@ -56,16 +56,14 @@ class CP_Settings {
 			/* ---------------- Atelier ---------------- */
 			'h_identity'          => array( 'atelier', 'heading', __( 'Identité de l\'atelier', 'controle-parapente' ) ),
 			'workshop_name'       => array( 'atelier', 'text', __( 'Nom de l\'atelier', 'controle-parapente' ), get_bloginfo( 'name' ) ),
-			'manager_name'        => array( 'atelier', 'text', __( 'Responsable (nom et prénom)', 'controle-parapente' ), '', __( 'Mention obligatoire sur le rapport ParachecK.', 'controle-parapente' ) ),
+			'manager_name'        => array( 'atelier', 'text', __( 'Responsable (nom et prénom)', 'controle-parapente' ), '', __( 'Mention obligatoire sur le rapport.', 'controle-parapente' ) ),
 			'workshop_address'    => array( 'atelier', 'textarea', __( 'Adresse', 'controle-parapente' ), '' ),
 			'workshop_phone'      => array( 'atelier', 'text', __( 'Téléphone', 'controle-parapente' ), '' ),
 			'workshop_email'      => array( 'atelier', 'email', __( 'E-mail affiché sur le rapport', 'controle-parapente' ), '' ),
 			'workshop_website'    => array( 'atelier', 'url', __( 'Site web', 'controle-parapente' ), '' ),
 			'workshop_approval'   => array( 'atelier', 'text', __( 'SIRET / n° d\'agrément', 'controle-parapente' ), '' ),
 			'insurer'             => array( 'atelier', 'text', __( 'Assureur RC professionnelle', 'controle-parapente' ), '' ),
-			'insurance_policy'    => array( 'atelier', 'text', __( 'N° de police d\'assurance', 'controle-parapente' ), '', __( 'Mention obligatoire sur le rapport ParachecK.', 'controle-parapente' ) ),
-			'paracheck_member'    => array( 'atelier', 'checkbox', __( 'Atelier signataire de la charte FFVL ParachecK®', 'controle-parapente' ), '1' ),
-			'paracheck_number'    => array( 'atelier', 'text', __( 'Référence ParachecK de l\'atelier (facultatif)', 'controle-parapente' ), '' ),
+			'insurance_policy'    => array( 'atelier', 'text', __( 'N° de police d\'assurance', 'controle-parapente' ), '', __( 'Mention obligatoire sur le rapport.', 'controle-parapente' ) ),
 			'h_look'              => array( 'atelier', 'heading', __( 'Apparence', 'controle-parapente' ) ),
 			'logo_id'             => array( 'atelier', 'logo', __( 'Logo', 'controle-parapente' ), 0, __( 'Affiché en haut de l\'espace atelier et du rapport client.', 'controle-parapente' ) ),
 			'accent_color'        => array( 'atelier', 'color', __( 'Couleur d\'accent', 'controle-parapente' ), '#c0643f' ),
@@ -77,10 +75,10 @@ class CP_Settings {
 
 			/* ---------------- Normes & seuils ---------------- */
 			'h_norms'             => array( 'normes', 'heading', __( 'Références', 'controle-parapente' ) ),
-			'norms_reference'     => array( 'normes', 'textarea', __( 'Normes appliquées (texte du rapport)', 'controle-parapente' ), __( 'Contrôle réalisé selon le PMA Standard « Periodical Inspection of Paragliders » (V 2024.12.1) et la charte FFVL ParachecK® des ateliers de contrôle (V3.01). Valeurs de référence utilisées, par ordre de priorité : valeurs du constructeur, valeurs PMA, valeurs de la charte.', 'controle-parapente' ), __( 'Pensez à mettre à jour ce texte lors d\'une nouvelle version de la norme ou de la charte.', 'controle-parapente' ) ),
+			'norms_reference'     => array( 'normes', 'textarea', __( 'Normes appliquées (texte du rapport)', 'controle-parapente' ), self::default_norms_reference(), __( 'Pensez à mettre à jour ce texte lors d\'une nouvelle version de la norme.', 'controle-parapente' ) ),
 			'threshold_source'    => array( 'normes', 'select', __( 'Origine des seuils par défaut', 'controle-parapente' ), 'charte', __( 'Modifiable pour chaque contrôle (ex. seuils du manuel constructeur).', 'controle-parapente' ), self::threshold_sources() ),
 			'h_porosity'          => array( 'normes', 'heading', __( 'Porosité', 'controle-parapente' ) ),
-			'porosity_unit'       => array( 'normes', 'select', __( 'Unité de mesure', 'controle-parapente' ), 'lm2min', __( 'La charte ParachecK demande l\'expression en l/m²/min.', 'controle-parapente' ), self::porosity_units() ),
+			'porosity_unit'       => array( 'normes', 'select', __( 'Unité de mesure', 'controle-parapente' ), 'lm2min', __( 'Unité recommandée pour le rapport : l/m²/min.', 'controle-parapente' ), self::porosity_units() ),
 			'porosity_alert'      => array( 'normes', 'number', __( 'Valeur d\'alerte', 'controle-parapente' ), 490, __( 'En l/m²/min : alerte au-dessus. En secondes : alerte en dessous.', 'controle-parapente' ) ),
 			'porosity_reform'     => array( 'normes', 'number', __( 'Valeur de réforme', 'controle-parapente' ), 540, __( 'En l/m²/min : réforme au-dessus. En secondes : réforme en dessous.', 'controle-parapente' ) ),
 			'h_tear'              => array( 'normes', 'heading', __( 'Résistance à la déchirure (Bettsomètre)', 'controle-parapente' ) ),
@@ -122,7 +120,7 @@ class CP_Settings {
 			'signature_label'     => array( 'rapport', 'text', __( 'Libellé de la zone de signature', 'controle-parapente' ), __( 'Signature et cachet de l\'atelier', 'controle-parapente' ) ),
 
 			/* ---------------- Listes ---------------- */
-			'inspection_types'    => array( 'listes', 'lines', __( 'Types d\'inspection', 'controle-parapente' ), "Révision périodique ParachecK® | V P T L G E\nInspection intermédiaire ParachecK® | V P T G\nInspection basique ParachecK® | V P T G\nInspection mécanique ParachecK® | P T L\nInspection géométrique ParachecK® | G\nInspection visuelle / après incident ParachecK® | V", __( 'Une par ligne : « Nom | lettres des tests inclus ». V = visuelle, P = porosité, T = déchirure, L = résistance des suspentes, G = calage, E = état global évaluable. Les tests absents apparaissent « Non réalisé » sur le rapport.', 'controle-parapente' ) ),
+			'inspection_types'    => array( 'listes', 'lines', __( 'Types d\'inspection', 'controle-parapente' ), "Révision périodique | V P T L G E\nInspection intermédiaire | V P T G\nInspection basique | V P T G\nInspection mécanique | P T L\nInspection géométrique | G\nInspection visuelle / après incident | V", __( 'Une par ligne : « Nom | lettres des tests inclus ». V = visuelle, P = porosité, T = déchirure, L = résistance des suspentes, G = calage, E = état global évaluable. Les tests absents apparaissent « Non réalisé » sur le rapport.', 'controle-parapente' ) ),
 			'visual_items'        => array( 'listes', 'lines', __( 'Points de l\'inspection visuelle', 'controle-parapente' ), "Tissu extrados (déchirures, usure, UV)\nTissu intrados\nBord d'attaque, joncs, entrées d'air\nBord de fuite\nCloisons, diagonales, renforts\nCoutures\nPattes et points d'ancrage des suspentes\nSuspentes (gaine, nœuds, abrasion)\nÉlévateurs (sangles, coutures, marquage)\nMaillons / connecteurs\nSystème d'accélérateur (poulies, drisses)\nPoignées et drisses de frein\nÉtiquette et marquage d'homologation", __( 'Un point par ligne. Renommer un point efface son état sur les fiches existantes.', 'controle-parapente' ) ),
 			'porosity_points'     => array( 'listes', 'lines', __( 'Points de mesure de porosité proposés', 'controle-parapente' ), "Extrados — centre gauche (20-30 cm du BA)\nExtrados — centre droit (20-30 cm du BA)\nExtrados — 1/4 envergure gauche\nExtrados — 1/4 envergure droite\nExtrados — 1/2 envergure gauche\nExtrados — 1/2 envergure droite\nIntrados — centre" ),
 			'tear_points'         => array( 'listes', 'lines', __( 'Points de mesure de déchirure proposés', 'controle-parapente' ), "Extrados — bord d'attaque centre\nIntrados — centre\nCloison — centre" ),
@@ -147,11 +145,28 @@ class CP_Settings {
 		);
 	}
 
+	public static function default_norms_reference() {
+		return __( 'Contrôle réalisé selon le PMA Standard « Periodical Inspection of Paragliders » (V 2024.12.1) et les recommandations en vigueur pour les ateliers de contrôle. Valeurs de référence utilisées, par ordre de priorité : valeurs du constructeur, valeurs PMA, valeurs de référence de l\'atelier.', 'controle-parapente' );
+	}
+
+	/**
+	 * Retire l'ancienne mention d'un label commercial des réglages déjà enregistrés.
+	 */
+	private static function migrate( array $settings ) {
+		if ( false !== stripos( (string) $settings['norms_reference'], 'paracheck' ) ) {
+			$settings['norms_reference'] = self::default_norms_reference();
+		}
+		foreach ( array( 'inspection_types', 'report_title', 'report_intro', 'state_help', 'state_unavailable', 'certificate_footer' ) as $key ) {
+			$settings[ $key ] = trim( preg_replace( '/[ \t]*(de la charte FFVL )?ParachecK\s*®?/iu', '', (string) $settings[ $key ] ) );
+		}
+		return $settings;
+	}
+
 	public static function threshold_sources() {
 		return array(
 			'constructeur' => __( 'Valeurs du constructeur', 'controle-parapente' ),
 			'pma'          => __( 'Valeurs PMA', 'controle-parapente' ),
-			'charte'       => __( 'Valeurs de la charte ParachecK', 'controle-parapente' ),
+			'charte'       => __( 'Valeurs de référence de l\'atelier', 'controle-parapente' ),
 		);
 	}
 
@@ -180,7 +195,7 @@ class CP_Settings {
 	 */
 	public static function get( $key = null ) {
 		if ( null === self::$cache ) {
-			self::$cache = wp_parse_args( (array) get_option( self::OPTION, array() ), self::defaults() );
+			self::$cache = self::migrate( wp_parse_args( (array) get_option( self::OPTION, array() ), self::defaults() ) );
 		}
 		if ( null === $key ) {
 			return self::$cache;
