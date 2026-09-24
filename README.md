@@ -36,7 +36,7 @@ Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 20
 
 - identification de l'atelier : nom, responsable, n° de police d'assurance RC pro ;
 - **type d'inspection** (révision périodique, intermédiaire, basique, mécanique, géométrique, visuelle/incident) : les tests non inclus apparaissent **« Non réalisé »**, avec la préconisation du constructeur en commentaire ;
-- **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf → Réforme), uniquement après une révision périodique complète ; aucun pourcentage d'usure ni durée de vie restante ;
+- **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf → Réforme), avec la liste des tests sur lesquels il repose (même si tous n'ont pas été réalisés) ; aucun pourcentage d'usure ni durée de vie restante ;
 - **porosité** saisie en secondes et convertie en **l/m²/min** sur le rapport (constante réglable, 5400 par défaut) : chaque point avec sa position, minimum, maximum, moyenne, valeurs d'alerte et de réforme ;
 - **déchirure** (Bettsomètre, en g) et **résistance des suspentes** par étage (rupture en daN et seuil minimum) ;
 - **calage** : longueurs mesurées sous la tension indiquée (5 daN selon le PMA) ;

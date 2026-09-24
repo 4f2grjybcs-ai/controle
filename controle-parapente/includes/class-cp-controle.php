@@ -129,14 +129,33 @@ class CP_Controle {
 	}
 
 	/**
-	 * L'état global n'est évaluable qu'après un type d'inspection qui le permet, tous tests réalisés.
+	 * Tests sur lesquels repose l'état général : [ 'labels' => [...], 'complete' => bool ].
+	 * L'état général peut être donné quel que soit le nombre de tests réalisés ;
+	 * le rapport indique simplement sur quoi il s'appuie.
 	 */
-	public static function state_allowed( array $d ) {
-		$types = self::inspection_types();
-		if ( ! isset( $types[ $d['inspection_type'] ] ) || ! $types[ $d['inspection_type'] ]['state'] ) {
-			return false;
+	public static function state_basis( array $d ) {
+		$tests = self::tests();
+		$done  = array_values( array_intersect( array_keys( $tests ), self::tests_done( $d ) ) );
+		return array(
+			'labels'   => array_map(
+				static function ( $t ) use ( $tests ) {
+					return $tests[ $t ];
+				},
+				$done
+			),
+			'complete' => count( $done ) === count( $tests ),
+		);
+	}
+
+	/**
+	 * Position choisie sur le curseur d'état, ou null si non renseignée / hors de la liste actuelle.
+	 */
+	public static function global_state( array $d ) {
+		if ( '' === (string) $d['global_state'] ) {
+			return null;
 		}
-		return ! array_diff( array_keys( self::tests() ), self::tests_done( $d ) );
+		$i = (int) $d['global_state'];
+		return isset( self::state_labels()[ $i ] ) ? $i : null;
 	}
 
 	public static function state_labels() {

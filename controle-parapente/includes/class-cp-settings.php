@@ -108,8 +108,8 @@ class CP_Settings {
 			'note_title'          => array( 'rapport', 'text', __( 'Titre du mot de l\'atelier', 'controle-parapente' ), __( 'Le mot de l\'atelier', 'controle-parapente' ) ),
 			'state_title'         => array( 'rapport', 'text', __( 'Titre du curseur d\'état', 'controle-parapente' ), __( 'État général de l\'aile', 'controle-parapente' ) ),
 			'state_labels'        => array( 'rapport', 'lines', __( 'Positions du curseur d\'état (une par ligne, de la meilleure à la pire)', 'controle-parapente' ), "Neuf\nTrès bon état\nBon état\nÉtat correct\nUsé — à surveiller\nRéforme" ),
-			'state_help'          => array( 'rapport', 'textarea', __( 'Explication du curseur', 'controle-parapente' ), __( 'Curseur établi à l\'issue d\'une révision périodique complète. Il indique l\'état de l\'aile au jour du contrôle ; il ne constitue ni un pourcentage d\'usure, ni une durée de vie restante.', 'controle-parapente' ) ),
-			'state_unavailable'   => array( 'rapport', 'textarea', __( 'Texte si l\'état global n\'est pas évaluable', 'controle-parapente' ), __( 'État global non évaluable : seule une révision périodique complète (tous les tests réalisés) permet d\'évaluer l\'état général de l\'aile.', 'controle-parapente' ) ),
+			'state_help'          => array( 'rapport', 'textarea', __( 'Explication du curseur', 'controle-parapente' ), __( 'Le curseur indique l\'état de l\'aile au jour du contrôle, d\'après les tests réalisés ; il ne constitue ni un pourcentage d\'usure, ni une durée de vie restante.', 'controle-parapente' ) ),
+			'state_unavailable'   => array( 'rapport', 'textarea', __( 'Texte si l\'état général n\'est pas renseigné', 'controle-parapente' ), __( 'État général non évalué lors de ce contrôle.', 'controle-parapente' ) ),
 			'h_sections'          => array( 'rapport', 'heading', __( 'Titres des inspections', 'controle-parapente' ) ),
 			'title_visual'        => array( 'rapport', 'text', __( 'Inspection visuelle', 'controle-parapente' ), __( 'Inspection visuelle', 'controle-parapente' ) ),
 			'title_mechanical'    => array( 'rapport', 'text', __( 'Inspection mécanique', 'controle-parapente' ), __( 'Inspection mécanique', 'controle-parapente' ) ),
@@ -121,7 +121,7 @@ class CP_Settings {
 			'signature_label'     => array( 'rapport', 'text', __( 'Libellé de la zone de signature', 'controle-parapente' ), __( 'Signature et cachet de l\'atelier', 'controle-parapente' ) ),
 
 			/* ---------------- Listes ---------------- */
-			'inspection_types'    => array( 'listes', 'lines', __( 'Types d\'inspection', 'controle-parapente' ), "Révision périodique | V P T L G E\nInspection intermédiaire | V P T G\nInspection basique | V P T G\nInspection mécanique | P T L\nInspection géométrique | G\nInspection visuelle / après incident | V", __( 'Une par ligne : « Nom | lettres des tests inclus ». V = visuelle, P = porosité, T = déchirure, L = résistance des suspentes, G = calage, E = état global évaluable. Les tests absents apparaissent « Non réalisé » sur le rapport.', 'controle-parapente' ) ),
+			'inspection_types'    => array( 'listes', 'lines', __( 'Types d\'inspection', 'controle-parapente' ), "Révision périodique | V P T L G E\nInspection intermédiaire | V P T G\nInspection basique | V P T G\nInspection mécanique | P T L\nInspection géométrique | G\nInspection visuelle / après incident | V", __( 'Une par ligne : « Nom | lettres des tests inclus ». V = visuelle, P = porosité, T = déchirure, L = résistance des suspentes, G = calage. Les tests absents apparaissent « Non réalisé » sur le rapport.', 'controle-parapente' ) ),
 			'visual_items'        => array( 'listes', 'lines', __( 'Points de l\'inspection visuelle', 'controle-parapente' ), "Tissu extrados (déchirures, usure, UV)\nTissu intrados\nBord d'attaque, joncs, entrées d'air\nBord de fuite\nCloisons, diagonales, renforts\nCoutures\nPattes et points d'ancrage des suspentes\nSuspentes (gaine, nœuds, abrasion)\nÉlévateurs (sangles, coutures, marquage)\nMaillons / connecteurs\nSystème d'accélérateur (poulies, drisses)\nPoignées et drisses de frein\nÉtiquette et marquage d'homologation", __( 'Un point par ligne. Renommer un point efface son état sur les fiches existantes.', 'controle-parapente' ) ),
 			'porosity_points'     => array( 'listes', 'lines', __( 'Points de mesure de porosité proposés', 'controle-parapente' ), "Extrados — centre gauche (20-30 cm du BA)\nExtrados — centre droit (20-30 cm du BA)\nExtrados — 1/4 envergure gauche\nExtrados — 1/4 envergure droite\nExtrados — 1/2 envergure gauche\nExtrados — 1/2 envergure droite\nIntrados — centre" ),
 			'tear_points'         => array( 'listes', 'lines', __( 'Points de mesure de déchirure proposés', 'controle-parapente' ), "Extrados — bord d'attaque centre\nIntrados — centre\nCloison — centre" ),
@@ -166,6 +166,12 @@ class CP_Settings {
 		}
 		if ( false !== stripos( (string) $settings['norms_reference'], 'paracheck' ) ) {
 			$settings['norms_reference'] = self::default_norms_reference();
+		}
+		if ( false !== stripos( (string) $settings['state_help'], 'révision périodique complète' ) ) {
+			$settings['state_help'] = self::defaults()['state_help'];
+		}
+		if ( false !== stripos( (string) $settings['state_unavailable'], 'révision périodique complète' ) ) {
+			$settings['state_unavailable'] = self::defaults()['state_unavailable'];
 		}
 		foreach ( array( 'inspection_types', 'report_title', 'report_intro', 'state_help', 'state_unavailable', 'certificate_footer' ) as $key ) {
 			$settings[ $key ] = trim( preg_replace( '/[ \t]*(de la charte FFVL )?ParachecK\s*®?/iu', '', (string) $settings[ $key ] ) );

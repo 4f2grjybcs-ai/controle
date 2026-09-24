@@ -424,8 +424,7 @@ class CP_Admin {
 		self::textarea( 'interp_geometric', CP_Settings::get( 'title_geometric' ), $d['interp_geometric'], 2 );
 
 		echo '<h4>' . esc_html( CP_Settings::get( 'state_title' ) ) . '</h4>';
-		$allowed = CP_Controle::state_allowed( $d );
-		echo '<div class="cp-state-picker' . ( $allowed ? '' : ' is-disabled' ) . '">';
+		echo '<div class="cp-state-picker">';
 		foreach ( CP_Controle::state_labels() as $i => $label ) {
 			printf(
 				'<label><input type="radio" name="cp[global_state]" value="%1$d" %2$s /> <span>%3$s</span></label>',
@@ -436,7 +435,13 @@ class CP_Admin {
 		}
 		printf( '<label><input type="radio" name="cp[global_state]" value="" %s /> <span>%s</span></label>', checked( '', $d['global_state'], false ), esc_html__( 'Non évalué', 'controle-parapente' ) );
 		echo '</div>';
-		echo '<p class="description">' . esc_html( $allowed ? CP_Settings::get( 'state_help' ) : CP_Settings::get( 'state_unavailable' ) ) . '</p>';
+		$basis = CP_Controle::state_basis( $d );
+		echo '<p class="description">' . esc_html(
+			$basis['labels']
+				/* translators: %s: liste des tests */
+				? sprintf( __( 'Sur le rapport, l\'état sera présenté comme établi à partir des tests réalisés : %s.', 'controle-parapente' ), implode( ', ', $basis['labels'] ) )
+				: __( 'Aucun test coché comme réalisé.', 'controle-parapente' )
+		) . '</p>';
 
 		echo '<h4>' . esc_html__( 'Travaux et observations', 'controle-parapente' ) . '</h4>';
 		self::textarea( 'repairs', __( 'Réparations / pièces remplacées', 'controle-parapente' ), $d['repairs'] );

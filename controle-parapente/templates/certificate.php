@@ -34,7 +34,8 @@ $itypes      = CP_Controle::inspection_types();
 $itype       = isset( $itypes[ $d['inspection_type'] ] ) ? $itypes[ $d['inspection_type'] ]['label'] : '';
 $done        = CP_Controle::tests_done( $d );
 $t           = CP_Controle::thresholds( $d );
-$state_ok    = CP_Controle::state_allowed( $d );
+$state_now   = CP_Controle::global_state( $d );
+$state_basis = CP_Controle::state_basis( $d );
 $state_list  = CP_Controle::state_labels();
 $instruments = CP_Settings::instruments();
 
@@ -181,17 +182,30 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 		<!-- Synthèse -->
 		<section class="cp-synthesis">
 			<h2><?php echo esc_html( $settings['state_title'] ); ?></h2>
-			<?php if ( $state_ok && '' !== $d['global_state'] && $state_list ) : ?>
+			<?php if ( null !== $state_now ) : ?>
 				<?php $count = count( $state_list ); ?>
-				<div class="cp-cursor" role="img" aria-label="<?php echo esc_attr( $state_list[ (int) $d['global_state'] ] ?? '' ); ?>">
+				<div class="cp-cursor" role="img" aria-label="<?php echo esc_attr( $state_list[ $state_now ] ); ?>">
 					<?php foreach ( $state_list as $i => $label ) : ?>
 						<?php $hue = $count > 1 ? round( 125 - ( 115 * $i / ( $count - 1 ) ) ) : 125; ?>
-						<div class="cp-cursor-step<?php echo (int) $d['global_state'] === $i ? ' is-current' : ''; ?>" style="--hue:<?php echo esc_attr( $hue ); ?>">
+						<div class="cp-cursor-step<?php echo $state_now === $i ? ' is-current' : ''; ?>" style="--hue:<?php echo esc_attr( $hue ); ?>">
 							<span class="cp-cursor-bar"></span>
 							<span class="cp-cursor-label"><?php echo esc_html( $label ); ?></span>
 						</div>
 					<?php endforeach; ?>
 				</div>
+				<?php if ( $state_basis['labels'] ) : ?>
+					<p class="cp-state-basis">
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %s: liste des tests */
+								$state_basis['complete'] ? __( 'Établi à partir de l\'ensemble des tests : %s.', 'controle-parapente' ) : __( 'Établi à partir des tests réalisés lors de ce contrôle : %s.', 'controle-parapente' ),
+								implode( ', ', array_map( 'mb_strtolower', $state_basis['labels'] ) )
+							)
+						);
+						?>
+					</p>
+				<?php endif; ?>
 				<p class="cp-small"><?php echo esc_html( $settings['state_help'] ); ?></p>
 			<?php else : ?>
 				<p class="cp-state-na"><?php echo esc_html( $settings['state_unavailable'] ); ?></p>
