@@ -279,6 +279,8 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 .cp-summary-card--partial .cp-pill { background: var( --cp-warn-soft ); color: var( --cp-warn ); }
 .cp-summary-card--none { background: var( --cp-cream ); }
 .cp-summary-card--none .cp-pill { background: #e9e1d7; color: var( --cp-muted ); }
+.cp-summary-card--skipped { background: var( --cp-cream ); }
+.cp-summary-card--skipped .cp-pill { background: var( --cp-ok-soft ); color: var( --cp-ok ); }
 
 .cp-inspection { margin-top: 8px; }
 .cp-inspection h3 { margin-top: 16px; }
@@ -294,6 +296,7 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 }
 .cp-notdone strong { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; color: var( --cp-accent-strong ); }
 .cp-notdone span { font-size: 12px; color: var( --cp-muted ); }
+.cp-notdone--validated strong { color: var( --cp-ok ); }
 .cp-metrics { display: grid; grid-template-columns: repeat( 5, 1fr ); gap: 8px; margin-bottom: 8px; }
 .cp-metrics > div { padding: 6px 10px; border-radius: 10px; background: var( --cp-cream ); }
 .cp-metrics strong { display: block; font-size: 13px; }

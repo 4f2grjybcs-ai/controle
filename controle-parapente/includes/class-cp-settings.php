@@ -125,6 +125,8 @@ class CP_Settings {
 			'title_mechanical'    => array( 'rapport', 'text', __( 'Inspection mécanique', 'controle-parapente' ), __( 'Inspection mécanique', 'controle-parapente' ) ),
 			'title_geometric'     => array( 'rapport', 'text', __( 'Inspection géométrique', 'controle-parapente' ), __( 'Inspection géométrique (calage)', 'controle-parapente' ) ),
 			'not_done_text'       => array( 'rapport', 'text', __( 'Mention d\'un test non réalisé', 'controle-parapente' ), __( 'Non réalisé', 'controle-parapente' ) ),
+			'not_needed_text'     => array( 'rapport', 'text', __( 'Mention d\'un test non nécessaire', 'controle-parapente' ), __( 'Non nécessaire', 'controle-parapente' ), __( 'Un test « non nécessaire » ou « non demandé » est validé : il ne déclenche pas l\'avertissement d\'inspection partielle.', 'controle-parapente' ) ),
+			'not_requested_text'  => array( 'rapport', 'text', __( 'Mention d\'un test non demandé', 'controle-parapente' ), __( 'Non demandé', 'controle-parapente' ) ),
 			'h_footer'            => array( 'rapport', 'heading', __( 'Pied du rapport', 'controle-parapente' ) ),
 			'thanks_text'         => array( 'rapport', 'text', __( 'Phrase de remerciement', 'controle-parapente' ), __( 'Merci de votre confiance, et bons vols !', 'controle-parapente' ) ),
 			'certificate_footer'  => array( 'rapport', 'textarea', __( 'Mention en bas du rapport', 'controle-parapente' ), __( 'Ce contrôle atteste de l\'état du matériel à la date indiquée. Il ne dispense pas le pilote d\'une visite pré-vol à chaque utilisation.', 'controle-parapente' ) ),

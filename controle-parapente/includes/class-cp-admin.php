@@ -412,17 +412,27 @@ class CP_Admin {
 		self::select( 'threshold_source', __( 'Origine des seuils', 'controle-parapente' ), $d['threshold_source'] ? $d['threshold_source'] : CP_Settings::get( 'threshold_source' ), CP_Settings::threshold_sources() );
 		echo '</div>';
 
-		echo '<table class="widefat cp-tests"><thead><tr><th>' . esc_html__( 'Test', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Réalisé', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Si non réalisé : préconisation du constructeur / commentaire', 'controle-parapente' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat cp-tests"><thead><tr><th>' . esc_html__( 'Test', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Réalisé', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Si non réalisé', 'controle-parapente' ) . '</th><th>' . esc_html__( 'Préconisation du constructeur / commentaire', 'controle-parapente' ) . '</th></tr></thead><tbody>';
+		$reasons = CP_Controle::test_reasons();
 		foreach ( CP_Controle::tests() as $test => $label ) {
+			$is_done = in_array( $test, $done, true );
+			$current = CP_Controle::test_reason( $d, $test );
+			$options = '';
+			foreach ( $reasons as $key => $text ) {
+				$options .= sprintf( '<option value="%s" %s>%s</option>', esc_attr( $key ), selected( $current, $key, false ), esc_html( $text ) );
+			}
 			printf(
-				'<tr><td>%1$s</td><td><input type="checkbox" class="cp-test-done" data-test="%2$s" name="cp[tests_done][%2$s]" value="1" %3$s /></td><td><input type="text" class="widefat" name="cp[not_done_notes][%2$s]" value="%4$s" /></td></tr>',
+				'<tr><td>%1$s</td><td><input type="checkbox" class="cp-test-done" data-test="%2$s" name="cp[tests_done][%2$s]" value="1" %3$s /></td><td><select class="cp-test-reason" name="cp[tests_reason][%2$s]" %5$s>%6$s</select></td><td><input type="text" class="widefat" name="cp[not_done_notes][%2$s]" value="%4$s" /></td></tr>',
 				esc_html( $label ),
 				esc_attr( $test ),
-				checked( in_array( $test, $done, true ), true, false ),
-				esc_attr( isset( $d['not_done_notes'][ $test ] ) ? $d['not_done_notes'][ $test ] : '' )
+				checked( $is_done, true, false ),
+				esc_attr( isset( $d['not_done_notes'][ $test ] ) ? $d['not_done_notes'][ $test ] : '' ),
+				$is_done ? 'disabled' : '',
+				$options // phpcs:ignore WordPress.Security.EscapeOutput
 			);
 		}
 		echo '</tbody></table>';
+		echo '<p class="description">' . esc_html__( '« Non nécessaire » ou « Non demandé » valide le test : le rapport n\'affiche pas l\'avertissement d\'inspection partielle et peut attester de la navigabilité. « Non réalisé » laisse l\'inspection partielle.', 'controle-parapente' ) . '</p>';
 
 		echo '<h4>' . esc_html__( 'Conditions et prérequis (PMA 4)', 'controle-parapente' ) . '</h4><div class="cp-grid">';
 		self::field( 'temperature', __( 'Température (°C, 5 à 35)', 'controle-parapente' ), $d['temperature'], 'number', 'step="0.5"' );

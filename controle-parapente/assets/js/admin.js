@@ -184,9 +184,24 @@
 			var tests = cfg.inspectionTypes[ typeSelect.value ] || [];
 			document.querySelectorAll( '.cp-test-done' ).forEach( function ( box ) {
 				box.checked = tests.indexOf( box.getAttribute( 'data-test' ) ) !== -1;
+				syncReason( box );
 			} );
 		} );
 	}
+
+	// Test non réalisé : motif (non nécessaire / non demandé) actif seulement si la case est décochée.
+	function syncReason( box ) {
+		var row = box.closest( 'tr' );
+		var reason = row ? row.querySelector( '.cp-test-reason' ) : null;
+		if ( reason ) {
+			reason.disabled = box.checked;
+		}
+	}
+	document.querySelectorAll( '.cp-test-done' ).forEach( function ( box ) {
+		box.addEventListener( 'change', function () {
+			syncReason( box );
+		} );
+	} );
 
 	// Contrôle visuel : tout marquer « Bon état ».
 	var allOk = document.querySelector( '.cp-all-ok' );

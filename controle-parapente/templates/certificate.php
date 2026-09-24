@@ -60,9 +60,11 @@ $fmt = static function ( $n ) {
 $is_done  = static function ( $test ) use ( $done ) {
 	return in_array( $test, $done, true );
 };
-$not_done = static function ( $test ) use ( $d, $settings ) {
-	$note = isset( $d['not_done_notes'][ $test ] ) ? $d['not_done_notes'][ $test ] : '';
-	echo '<div class="cp-notdone"><strong>' . esc_html( $settings['not_done_text'] ) . '</strong>';
+$reasons  = CP_Controle::test_reasons();
+$not_done = static function ( $test ) use ( $d, $reasons ) {
+	$note   = isset( $d['not_done_notes'][ $test ] ) ? $d['not_done_notes'][ $test ] : '';
+	$reason = CP_Controle::test_reason( $d, $test );
+	echo '<div class="cp-notdone' . ( '' !== $reason ? ' cp-notdone--validated' : '' ) . '"><strong>' . esc_html( $reasons[ $reason ] ) . '</strong>';
 	if ( $note ) {
 		echo '<span>' . esc_html( $note ) . '</span>';
 	}
@@ -75,9 +77,16 @@ $sections = array(
 	'mechanical' => array( $settings['title_mechanical'], array( 'P', 'T', 'L' ), $d['interp_mechanical'] ),
 	'geometric'  => array( $settings['title_geometric'], array( 'G' ), $d['interp_geometric'] ),
 );
-$section_status = static function ( $tests ) use ( $done ) {
+$validated      = CP_Controle::tests_validated( $d );
+$section_status = static function ( $tests ) use ( $done, $validated ) {
 	$n = count( array_intersect( $tests, $done ) );
-	return 0 === $n ? 'none' : ( count( $tests ) === $n ? 'full' : 'partial' );
+	if ( count( $tests ) === $n ) {
+		return 'full';
+	}
+	if ( count( $tests ) === count( array_intersect( $tests, $validated ) ) ) {
+		return $n ? 'full' : 'skipped';
+	}
+	return 0 === $n ? 'none' : 'partial';
 };
 $status_labels = array(
 	'full'    => __( 'Réalisée', 'controle-parapente' ),
@@ -223,7 +232,7 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 					<div class="cp-summary-card cp-summary-card--<?php echo esc_attr( $status ); ?>">
 						<div class="cp-summary-head">
 							<strong><?php echo esc_html( $section[0] ); ?></strong>
-							<span class="cp-pill"><?php echo esc_html( $status_labels[ $status ] ); ?></span>
+							<span class="cp-pill"><?php echo esc_html( 'skipped' === $status ? $reasons[ CP_Controle::test_reason( $d, $section[1][0] ) ] : $status_labels[ $status ] ); ?></span>
 						</div>
 						<p><?php echo $section[2] ? nl2br( esc_html( $section[2] ) ) : '<span class="cp-small">—</span>'; // phpcs:ignore WordPress.Security.EscapeOutput ?></p>
 					</div>

@@ -42,7 +42,7 @@ Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 20
 - **résistance des suspentes** : pour chaque suspente testée (niveaux A1 bas → haut), **type** choisi dans un catalogue (résistance à neuf et matière) ; le **minimum est calculé automatiquement** selon la PMA : *valeur à neuf × source (constructeur 1,00 / fournisseur 1,05) × matière (aramide / Technora / Vectran 0,45 ; Dyneema 0,65)*, ou saisi à la main si le constructeur donne un minimum. Le rapport indique le **% de la résistance à neuf** ;
 - **contrôle visuel** avec les mêmes termes que l'état global : Neuf / Très bon / Bon / Acceptable / Limite / Réformé ;
 - **conditions** (température 5–35 °C, humidité 30–80 %), date de conformité constructeur, consignes de sécurité, heures de vol (prochain contrôle = heures actuelles + 150 h) ;
-- **contrôle partiel** : si les 5 tests ne sont pas tous réalisés, le rapport affiche un avertissement ;
+- **contrôle partiel** : si les 5 tests ne sont pas tous réalisés, le rapport affiche un avertissement. Un test non réalisé peut être marqué **« Non nécessaire »** ou **« Non demandé »** : il est alors validé, l'avertissement disparaît et le rapport peut attester de la navigabilité (le test reste indiqué comme tel sur le rapport) ;
 - **calage** : longueurs mesurées sous la tension indiquée (5 daN selon le PMA) ;
 - origine des seuils (constructeur → PMA → référence de l'atelier), modifiable pour chaque contrôle ;
 - instruments de mesure et dates d'étalonnage (alerte dans l'atelier si l'étalonnage a plus de 12 mois).

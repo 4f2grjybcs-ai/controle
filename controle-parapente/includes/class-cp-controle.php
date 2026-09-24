@@ -120,6 +120,39 @@ class CP_Controle {
 	/**
 	 * Tests réalisés pour ce contrôle.
 	 */
+	/**
+	 * Motifs d'un test non réalisé. Un test « non nécessaire » ou « non demandé »
+	 * est validé : il ne rend pas l'inspection partielle.
+	 */
+	public static function test_reasons() {
+		return array(
+			''               => CP_Settings::get( 'not_done_text' ),
+			'non_necessaire' => CP_Settings::get( 'not_needed_text' ),
+			'non_demande'    => CP_Settings::get( 'not_requested_text' ),
+		);
+	}
+
+	/**
+	 * Motif d'un test non réalisé ('' = non réalisé, sans validation).
+	 */
+	public static function test_reason( array $d, $test ) {
+		$reason = isset( $d['tests_reason'][ $test ] ) ? $d['tests_reason'][ $test ] : '';
+		return isset( self::test_reasons()[ $reason ] ) ? $reason : '';
+	}
+
+	/**
+	 * Tests réalisés ou validés (non nécessaires / non demandés).
+	 */
+	public static function tests_validated( array $d ) {
+		$validated = self::tests_done( $d );
+		foreach ( array_keys( self::tests() ) as $test ) {
+			if ( '' !== self::test_reason( $d, $test ) ) {
+				$validated[] = $test;
+			}
+		}
+		return array_values( array_unique( $validated ) );
+	}
+
 	public static function tests_done( array $d ) {
 		if ( is_array( $d['tests_done'] ) && $d['tests_done'] ) {
 			return array_keys( array_filter( $d['tests_done'] ) );
@@ -351,6 +384,7 @@ class CP_Controle {
 			'inspection_type'   => (string) key( self::inspection_types() ),
 			'tests_done'        => array(),
 			'not_done_notes'    => array(),
+			'tests_reason'      => array(),
 			'threshold_source'  => '',
 			'por_alert'         => '',
 			'por_reform'        => '',
@@ -497,8 +531,13 @@ class CP_Controle {
 		$d['inspection_type']  = self::sanitize_choice( $raw, 'inspection_type', self::inspection_types(), (string) key( self::inspection_types() ) );
 		$d['tests_done']       = array();
 		$d['not_done_notes']   = array();
+		$d['tests_reason']     = array();
 		foreach ( array_keys( self::tests() ) as $test ) {
 			$d['tests_done'][ $test ] = ! empty( $raw['tests_done'][ $test ] ) ? '1' : '';
+			$reason                   = isset( $raw['tests_reason'][ $test ] ) ? sanitize_key( $raw['tests_reason'][ $test ] ) : '';
+			if ( '' === $d['tests_done'][ $test ] && '' !== $reason && isset( self::test_reasons()[ $reason ] ) ) {
+				$d['tests_reason'][ $test ] = $reason;
+			}
 			if ( ! empty( $raw['not_done_notes'][ $test ] ) ) {
 				$d['not_done_notes'][ $test ] = sanitize_text_field( $raw['not_done_notes'][ $test ] );
 			}
@@ -679,10 +718,11 @@ class CP_Controle {
 	}
 
 	/**
-	 * Tous les tests PMA réalisés ? Sinon le rapport porte l'avertissement d'inspection partielle.
+	 * Tous les tests PMA réalisés ou validés (non nécessaires / non demandés) ?
+	 * Sinon le rapport porte l'avertissement d'inspection partielle.
 	 */
 	public static function is_partial( array $d ) {
-		return (bool) array_diff( array_keys( self::tests() ), self::tests_done( $d ) );
+		return (bool) array_diff( array_keys( self::tests() ), self::tests_validated( $d ) );
 	}
 
 	public static function tear_level( $value, array $t ) {
