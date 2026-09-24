@@ -740,12 +740,11 @@ class CP_Trim {
 	 */
 	public static function wing_svg( array $trim, array $analysis, $set = 'result', $title = '' ) {
 		$w      = 900;
-		$h      = 420;
+		$h      = 325;
 		$cx     = $w / 2;
 		$half   = 420;   // Demi-envergure projetée (px).
 		$top    = 44;    // Bord d'attaque au centre.
-		$chord  = 270;   // Corde centrale (px).
-		$sweep  = 34;    // Recul du bord d'attaque en bout d'aile.
+		$chord  = 245;   // Corde centrale (px).
 		$colors = self::colors();
 		$tol    = (float) CP_Settings::get( 'trim_tolerance' );
 		$both   = 'one' !== $trim['sides'];
@@ -753,22 +752,19 @@ class CP_Trim {
 		// Position des rangées sur la corde (fraction depuis le bord d'attaque).
 		$row_pos = array( 'A' => 0.12, 'B' => 0.34, 'C' => 0.55, 'D' => 0.74, 'F' => 0.97 );
 
-		// Bord d'attaque : reculé vers les bouts, « oreilles » arrondies et affinées.
-		// Bord de fuite : presque droit, à peine arrondi tout au bout.
-		$round  = 0.72;          // Début de l'arrondi avant (fraction de demi-envergure).
-		$radius = $chord + 16 - $sweep - 8; // L'arrondi descend jusqu'au bord de fuite : oreille en quart d'ellipse.
-		$le_at  = static function ( $u ) use ( $top, $sweep, $round, $radius ) {
+		// Forme en plan d'après les plans de suspentage constructeur :
+		// bord d'attaque en ellipse continue, bord de fuite presque droit qui remonte
+		// doucement vers les bouts, bout d'aile fermé par un petit arrondi.
+		$te_rise = $chord * 0.18; // Remontée du bord de fuite en bout d'aile.
+		$tip     = 0.985;         // L'ellipse n'est pas fermée : il reste une petite corde en bout d'aile.
+		$te_at   = static function ( $u ) use ( $top, $chord, $te_rise ) {
 			$u = min( 1, abs( $u ) );
-			$y = $top + $sweep * pow( $u, 2.2 );
-			if ( $u > $round ) {
-				$t  = ( $u - $round ) / ( 1 - $round );
-				$y += $radius * ( 1 - sqrt( max( 0, 1 - $t * $t ) ) );
-			}
-			return $y;
+			return $top + $chord - $te_rise * $u * $u;
 		};
-		$te_at  = static function ( $u ) use ( $top, $chord ) {
-			$u = min( 1, abs( $u ) );
-			return $top + $chord + 16 * $u * $u;
+		$le_at   = static function ( $u ) use ( $top, $chord, $te_rise, $tip ) {
+			$u = min( 1, abs( $u ) ) * $tip;
+			// Corde elliptique mesurée depuis le bord de fuite.
+			return $top + $chord - $te_rise * $u * $u / ( $tip * $tip ) - ( $chord - 0 ) * sqrt( max( 0, 1 - $u * $u ) );
 		};
 		$chord_at = static function ( $u ) use ( $le_at, $te_at ) {
 			return $te_at( $u ) - $le_at( $u );
@@ -786,8 +782,12 @@ class CP_Trim {
 			$te[] = $x . ',' . round( $te_at( $u ), 1 );
 		}
 		// Bouts d'aile fermés par une courbe (oreille arrondie) plutôt qu'un trait droit.
-		// L'oreille (quart d'ellipse) rejoint le bord de fuite : on ferme par un trait très court.
-		$outline = 'M' . implode( ' L', $le ) . ' L' . implode( ' L', array_reverse( $te ) ) . ' Z';
+		// Bouts d'aile : petit arrondi entre le bord d'attaque et le bord de fuite.
+		$bulge   = 7;
+		$outline = 'M' . implode( ' L', $le )
+			. ' Q' . round( $cx + $half + $bulge, 1 ) . ',' . round( ( $le_at( 1 ) + $te_at( 1 ) ) / 2, 1 ) . ' ' . end( $te )
+			. ' L' . implode( ' L', array_reverse( $te ) )
+			. ' Q' . round( $cx - $half - $bulge, 1 ) . ',' . round( ( $le_at( 1 ) + $te_at( 1 ) ) / 2, 1 ) . ' ' . $le[0] . ' Z';
 
 		$svg  = '<svg class="cp-wing" viewBox="0 0 ' . $w . ' ' . $h . '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' . esc_attr__( 'Écarts de calage par groupe, aile vue de dessus', 'controle-parapente' ) . '">';
 		$svg .= '<defs>'
@@ -856,7 +856,7 @@ class CP_Trim {
 			$slots   = self::slots( $trim['structure'], $row );
 			$scale   = 'F' === $row ? count( $slots ) : $max_slots;
 			$u_start = 0.05;
-			$u_end   = 0.86;
+			$u_end   = 0.84;
 			$step    = $scale > 1 ? ( $u_end - $u_start ) / ( $scale - 1 ) : 0;
 			foreach ( $row_groups as $gi => $grp ) {
 				$hex = isset( $colors[ $grp['color'] ] ) ? $colors[ $grp['color'] ][1] : '#999';
