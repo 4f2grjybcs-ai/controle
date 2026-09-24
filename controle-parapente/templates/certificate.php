@@ -401,14 +401,11 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'L' ); ?>
 			<?php elseif ( $d['lines'] ) : ?>
 				<?php
-				$line_types = CP_Settings::line_types();
 				$levels     = CP_Controle::line_levels();
-				$materials  = CP_Controle::line_materials();
 				?>
 				<table class="cp-table">
 					<thead><tr>
 						<th><?php esc_html_e( 'Suspente testée', 'controle-parapente' ); ?></th>
-						<th><?php esc_html_e( 'Type / matière', 'controle-parapente' ); ?></th>
 						<th class="num"><?php esc_html_e( 'À neuf (daN)', 'controle-parapente' ); ?></th>
 						<th class="num"><?php esc_html_e( 'Rupture (daN)', 'controle-parapente' ); ?></th>
 						<th class="num"><?php esc_html_e( 'Minimum (daN)', 'controle-parapente' ); ?></th>
@@ -420,13 +417,10 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 						<?php
 						$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
 						$new   = isset( $row['new'] ) && is_numeric( $row['new'] ) && (float) $row['new'] > 0 ? (float) $row['new'] : null;
-						$type  = isset( $row['type'], $line_types[ $row['type'] ] ) ? $line_types[ $row['type'] ]['label'] : '';
-						$mat   = isset( $row['material'], $materials[ $row['material'] ] ) ? $materials[ $row['material'] ] : '';
 						$lvl   = isset( $row['level'], $levels[ $row['level'] ] ) ? $levels[ $row['level'] ] : '';
 						?>
 						<tr>
 							<td><?php echo esc_html( $row['line'] ); ?><?php if ( $lvl && ! preg_match( '/niveau/iu', $row['line'] ) ) : ?><span class="cp-small"><?php echo esc_html( $lvl ); ?></span><?php endif; ?></td>
-							<td class="cp-nowrap"><?php echo esc_html( $type ? $type : '—' ); ?><span class="cp-small"><?php echo esc_html( $mat ); ?></span></td>
 							<td class="num"><?php echo esc_html( null === $new ? '—' : $fmt( $new ) ); ?></td>
 							<td class="num"><?php echo esc_html( $fmt( $row['measured'] ) ); ?></td>
 							<td class="num"><?php echo esc_html( $fmt( $row['minimum'] ) ); ?></td>
