@@ -185,26 +185,38 @@
 		return g.empty;
 	}
 
-	/** Déplace une case vide vers la position cliquée (échange avec la case vide la plus proche). */
-	function moveEmpty( g, target ) {
+	/**
+	 * Active ou désactive une case du groupe : chaque clic bascule uniquement la case cliquée
+	 * (suspente ↔ case vide). Le nombre total de cases du groupe reste le même.
+	 */
+	function toggleSlot( g, k ) {
 		var empty = emptyPositions( g ).slice();
-		if ( ! empty.length || empty.indexOf( target ) !== -1 ) {
-			return;
+		var idx = empty.indexOf( k );
+		if ( idx !== -1 ) {
+			empty.splice( idx, 1 );
+			g.count = count( g ) + 1;
+			g.gap = gap( g ) - 1;
+		} else {
+			if ( count( g ) <= 1 ) {
+				return;
+			}
+			empty.push( k );
+			g.count = count( g ) - 1;
+			g.gap = gap( g ) + 1;
 		}
-		var nearest = empty.reduce( function ( a, b ) {
-			return Math.abs( b - target ) < Math.abs( a - target ) ? b : a;
-		} );
-		empty[ empty.indexOf( nearest ) ] = target;
 		g.empty = empty;
+		emptyPositions( g );
 	}
 
-	/** Mini-plan cliquable des cases d'un groupe : ■ suspente, □ case vide. */
-	function slotMap( row, i, g ) {
+	/** Plan cliquable des cases d'un groupe : case pleine = suspente (avec son numéro), case hachurée = vide. */
+	function slotMap( row, i, g, first ) {
 		var empty = emptyPositions( g );
-		var html = '<span class="cp-trim-map" title="Cliquez à l\'endroit où la case doit être vide">';
+		var n = first;
+		var html = '<span class="cp-trim-map" title="Cliquez sur une case pour l\'activer ou la laisser vide">';
 		for ( var k = 0; k < count( g ) + gap( g ); k++ ) {
 			var isEmpty = empty.indexOf( k ) !== -1;
-			html += '<button type="button" class="cp-trim-slot' + ( isEmpty ? ' is-empty' : '' ) + '" data-row="' + row + '" data-i="' + i + '" data-k="' + k + '" aria-label="' + ( isEmpty ? 'Case vide' : 'Suspente' ) + ' ' + ( k + 1 ) + '"></button>';
+			var label = isEmpty ? '' : row + ( ++n );
+			html += '<button type="button" class="cp-trim-slot' + ( isEmpty ? ' is-empty' : '' ) + '" data-row="' + row + '" data-i="' + i + '" data-k="' + k + '" aria-pressed="' + ( isEmpty ? 'false' : 'true' ) + '" aria-label="Case ' + ( k + 1 ) + ( isEmpty ? ' vide' : ' : ' + label ) + '">' + esc( label ) + '</button>';
 		}
 		return html + '</span>';
 	}
@@ -308,6 +320,7 @@
 			var total = groups.reduce( function ( a, g ) {
 				return a + count( g );
 			}, 0 );
+			var first = 0;
 			html += '<div class="cp-trim-srow' + ( row === 'F' ? ' is-brakes' : '' ) + '" data-row="' + row + '">';
 			html += '<div class="cp-trim-srow-label"><strong>' + esc( ROWS[ row ] ) + '</strong><small>' + total + ' susp.</small></div>';
 			html += '<div class="cp-trim-chips">';
@@ -320,15 +333,16 @@
 					'<input type="number" min="1" max="40" class="cp-trim-count" data-row="' + row + '" data-i="' + i + '" name="' + base + '[count]" value="' + esc( g.count ) + '" aria-label="Nombre de suspentes" title="Nombre de suspentes" />' +
 					'<label class="cp-trim-gap" title="Cases vides dans ce groupe (début, milieu ou fin)">+<input type="number" min="0" max="40" class="cp-trim-gap-input" data-row="' + row + '" data-i="' + i + '" name="' + base + '[gap]" value="' + esc( gap( g ) ) + '" aria-label="Cases vides" /> vide</label>' +
 					'<input type="hidden" name="' + base + '[empty]" value="' + esc( emptyPositions( g ).join( ',' ) ) + '" />' +
-					( gap( g ) ? slotMap( row, i, g ) : '' ) +
+					slotMap( row, i, g, first ) +
 					'<button type="button" class="cp-trim-chip-del" data-row="' + row + '" data-i="' + i + '" aria-label="Supprimer le groupe">×</button>' +
 					'</div>';
+				first += count( g );
 			} );
 			html += '<button type="button" class="cp-trim-add-group" data-row="' + row + '">＋ Groupe</button>';
 			html += '</div></div>';
 		} );
 		html += '<p class="cp-trim-align"><button type="button" class="button cp-trim-align-btn">Aligner les groupes entre A, B, C, D</button> ' +
-			'<span class="description">Ajoute automatiquement des cases vides quand un groupe n\'a pas le même nombre de suspentes sur chaque rangée (ex. 4 A, 4 B, 4 C mais 5 D). Pour placer une case vide au début, au milieu ou à la fin du groupe, cliquez à l\'endroit voulu dans le petit plan du groupe.</span></p>';
+			'<span class="description">Ajoute automatiquement des cases vides quand un groupe n\'a pas le même nombre de suspentes sur chaque rangée (ex. 4 A, 4 B, 4 C mais 5 D). Dans le plan de chaque groupe, un clic sur une case l\'active (suspente numérotée) ou la laisse vide (hachurée) : début, milieu, fin, plusieurs à la suite… À régler avant la saisie des mesures, car la numérotation des suspentes suit les cases actives.</span></p>';
 		structureBox.innerHTML = html;
 	}
 
@@ -351,7 +365,7 @@
 		}
 		var slot = e.target.closest( '.cp-trim-slot' );
 		if ( slot ) {
-			moveEmpty( state.structure[ slot.getAttribute( 'data-row' ) ][ +slot.getAttribute( 'data-i' ) ], +slot.getAttribute( 'data-k' ) );
+			toggleSlot( state.structure[ slot.getAttribute( 'data-row' ) ][ +slot.getAttribute( 'data-i' ) ], +slot.getAttribute( 'data-k' ) );
 			structureChanged();
 			return;
 		}
