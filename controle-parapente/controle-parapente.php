@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Contrôle Parapente
  * Description:       Gestion des contrôles (révisions) de parapentes : demandes en ligne, fiche de contrôle complète (porosité, suspentes, calage, visuel), certificat imprimable, suivi client et rappels automatiques.
- * Version:           1.8.0
+ * Version:           1.8.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Contrôle Parapente
@@ -16,10 +16,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CP_VERSION', '1.8.0' );
+define( 'CP_VERSION', '1.8.2' );
 define( 'CP_FILE', __FILE__ );
 define( 'CP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CP_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ * Version d'un fichier CSS/JS pour le cache du navigateur : version du plugin + date de modification,
+ * pour que chaque mise à jour des fichiers soit rechargée même sans changement de version.
+ */
+function cp_asset_ver( $path ) {
+	$file = CP_DIR . $path;
+	return CP_VERSION . ( file_exists( $file ) ? '.' . filemtime( $file ) : '' );
+}
 
 require_once CP_DIR . 'includes/class-cp-settings.php';
 require_once CP_DIR . 'includes/class-cp-controle.php';

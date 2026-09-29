@@ -44,9 +44,9 @@ class CP_Admin {
 	 * Styles et scripts de la fiche (admin et espace atelier).
 	 */
 	public static function enqueue_fiche_assets() {
-		wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), CP_VERSION );
-		wp_enqueue_script( 'cp-admin', CP_URL . 'assets/js/admin.js', array(), CP_VERSION, true );
-		wp_enqueue_script( 'cp-trim', CP_URL . 'assets/js/trim.js', array(), CP_VERSION, true );
+		wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), cp_asset_ver( 'assets/css/admin.css' ) );
+		wp_enqueue_script( 'cp-admin', CP_URL . 'assets/js/admin.js', array(), cp_asset_ver( 'assets/js/admin.js' ), true );
+		wp_enqueue_script( 'cp-trim', CP_URL . 'assets/js/trim.js', array(), cp_asset_ver( 'assets/js/trim.js' ), true );
 		wp_localize_script(
 			'cp-admin',
 			'cpAdmin',

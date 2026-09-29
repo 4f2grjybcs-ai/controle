@@ -28,7 +28,7 @@ class CP_Shortcodes {
 	}
 
 	public static function register_assets() {
-		wp_register_style( 'cp-public', CP_URL . 'assets/css/public.css', array(), CP_VERSION );
+		wp_register_style( 'cp-public', CP_URL . 'assets/css/public.css', array(), cp_asset_ver( 'assets/css/public.css' ) );
 	}
 
 	/* ------------------------------------------------------------------ */

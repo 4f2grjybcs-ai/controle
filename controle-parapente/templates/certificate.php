@@ -108,7 +108,7 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<meta name="robots" content="noindex, nofollow" />
 	<title><?php echo esc_html( $settings['report_title'] . ' ' . $d['reference'] ); ?></title>
-	<link rel="stylesheet" href="<?php echo esc_url( CP_URL . 'assets/css/certificate.css?ver=' . CP_VERSION ); ?>" />
+	<link rel="stylesheet" href="<?php echo esc_url( CP_URL . 'assets/css/certificate.css?ver=' . cp_asset_ver( 'assets/css/certificate.css' ) ); ?>" />
 	<style>:root { --cp-accent: <?php echo esc_html( $settings['accent_color'] ); ?>; }</style>
 </head>
 <body>

@@ -392,8 +392,8 @@ class CP_Settings {
 			return;
 		}
 		wp_enqueue_media();
-		wp_enqueue_style( 'cp-settings', CP_URL . 'assets/css/settings.css', array(), CP_VERSION );
-		wp_enqueue_script( 'cp-settings', CP_URL . 'assets/js/settings.js', array( 'jquery' ), CP_VERSION, true );
+		wp_enqueue_style( 'cp-settings', CP_URL . 'assets/css/settings.css', array(), cp_asset_ver( 'assets/css/settings.css' ) );
+		wp_enqueue_script( 'cp-settings', CP_URL . 'assets/js/settings.js', array( 'jquery' ), cp_asset_ver( 'assets/js/settings.js' ), true );
 	}
 
 	public static function add_menu() {

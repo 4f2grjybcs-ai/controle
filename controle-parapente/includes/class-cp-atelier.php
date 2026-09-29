@@ -186,8 +186,8 @@ class CP_Atelier {
 		if ( 'fiche' === $view ) {
 			CP_Admin::enqueue_fiche_assets();
 		}
-		wp_enqueue_style( 'cp-atelier', CP_URL . 'assets/css/atelier.css', array(), CP_VERSION );
-		wp_enqueue_script( 'cp-atelier', CP_URL . 'assets/js/atelier.js', array(), CP_VERSION, true );
+		wp_enqueue_style( 'cp-atelier', CP_URL . 'assets/css/atelier.css', array(), cp_asset_ver( 'assets/css/atelier.css' ) );
+		wp_enqueue_script( 'cp-atelier', CP_URL . 'assets/js/atelier.js', array(), cp_asset_ver( 'assets/js/atelier.js' ), true );
 
 		$titles = array(
 			'login' => __( 'Espace atelier', 'controle-parapente' ),
