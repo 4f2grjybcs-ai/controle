@@ -312,8 +312,13 @@ body.cp-atelier {
 	border-radius: 999px;
 	box-shadow: 0 10px 30px rgba( 93, 64, 45, 0.18 );
 }
-.cp-dirty { color: var( --cp-warn ); font-weight: 600; font-size: 14px; }
-.cp-dirty::before { content: "● "; }
+.cp-autosave { font-size: 14px; font-weight: 600; color: var( --cp-muted ); white-space: nowrap; transition: color 0.2s; }
+.cp-autosave[data-state="pending"], .cp-autosave[data-state="saving"] { color: var( --cp-warn ); }
+.cp-autosave[data-state="pending"]::before { content: "● "; }
+.cp-autosave[data-state="saving"]::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: cp-spin 0.8s linear infinite; vertical-align: -1px; }
+.cp-autosave[data-state="saved"] { color: var( --cp-ok ); }
+.cp-autosave[data-state="error"] { color: var( --cp-bad ); white-space: normal; }
+@keyframes cp-spin { to { transform: rotate( 360deg ); } }
 
 /* Rapport */
 .cp-report-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }

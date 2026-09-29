@@ -123,10 +123,16 @@ class CP_Atelier {
 				exit;
 
 			case 'save':
+				if ( ! empty( $_POST['cp_ajax'] ) ) {
+					self::autosave( $post_id );
+				}
 				check_admin_referer( CP_Admin::NONCE, 'cp_nonce' );
 				self::check_post( $post_id );
 				$raw = isset( $_POST['cp'] ) && is_array( $_POST['cp'] ) ? wp_unslash( $_POST['cp'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- nettoyé par CP_Controle::sanitize().
-				CP_Admin::process( $post_id, $raw, ! empty( $_POST['cp_notify'] ) );
+				// Le statut de référence est celui affiché à l'ouverture de la fiche : l'enregistrement automatique
+				// ne prévient jamais le client, c'est le bouton « Enregistrer » qui le fait.
+				$before = isset( $_POST['cp_status_before'] ) ? sanitize_key( wp_unslash( $_POST['cp_status_before'] ) ) : null;
+				CP_Admin::process( $post_id, $raw, ! empty( $_POST['cp_notify'] ), $before );
 				$tab = isset( $_POST['cp_tab'] ) ? sanitize_key( wp_unslash( $_POST['cp_tab'] ) ) : 'client';
 				wp_safe_redirect( self::url( array( 'fiche' => $post_id, 'msg' => 'saved' ) ) . '#' . $tab );
 				exit;
@@ -143,6 +149,35 @@ class CP_Atelier {
 				exit;
 		}
 		// phpcs:enable
+	}
+
+	/**
+	 * Enregistrement automatique (sans rechargement) : réponse JSON, aucun e-mail envoyé.
+	 */
+	private static function autosave( $post_id ) {
+		// phpcs:disable WordPress.Security.NonceVerification -- nonce vérifié ci-dessous.
+		$nonce = isset( $_POST['cp_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['cp_nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, CP_Admin::NONCE ) ) {
+			wp_send_json_error( array( 'message' => __( 'Session expirée : rechargez la page.', 'controle-parapente' ) ), 403 );
+		}
+		if ( ! $post_id || CP_Post_Type::POST_TYPE !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Accès refusé.', 'controle-parapente' ) ), 403 );
+		}
+		$raw = isset( $_POST['cp'] ) && is_array( $_POST['cp'] ) ? wp_unslash( $_POST['cp'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- nettoyé par CP_Controle::sanitize().
+		// phpcs:enable
+		CP_Admin::process( $post_id, $raw, false );
+		$d        = CP_Controle::get( $post_id );
+		$statuses = CP_Controle::statuses();
+		wp_send_json_success(
+			array(
+				'time'         => wp_date( 'H:i' ),
+				'nonce'        => wp_create_nonce( CP_Admin::NONCE ),
+				'status'       => $d['status'],
+				'status_label' => isset( $statuses[ $d['status'] ] ) ? $statuses[ $d['status'] ] : '',
+				'next_date'    => $d['next_date'],
+				'next_hours'   => $d['next_hours'],
+			)
+		);
 	}
 
 	private static function check_post( $post_id ) {
@@ -456,6 +491,7 @@ class CP_Atelier {
 			<input type="hidden" name="cp_atelier_action" value="save" />
 			<input type="hidden" name="cp_post_id" id="post_ID" value="<?php echo esc_attr( $post_id ); ?>" />
 			<input type="hidden" name="cp_tab" id="cp-tab" value="client" />
+			<input type="hidden" name="cp_status_before" id="cp-status-before" value="<?php echo esc_attr( $d['status'] ); ?>" />
 
 			<div class="cp-fiche-layout">
 				<div class="cp-fiche-main">
@@ -483,7 +519,7 @@ class CP_Atelier {
 					<div class="cp-panel" data-panel="rapport">
 						<section class="cp-card">
 							<h2><?php esc_html_e( 'Rapport à remettre au client', 'controle-parapente' ); ?></h2>
-							<p class="cp-muted"><?php esc_html_e( 'Aperçu du rapport tel qu\'il est enregistré (pensez à enregistrer vos dernières modifications). Il reste consultable à tout moment depuis la liste des contrôles.', 'controle-parapente' ); ?></p>
+							<p class="cp-muted"><?php esc_html_e( 'Aperçu du rapport tel qu\'il est enregistré (mis à jour automatiquement). Il reste consultable à tout moment depuis la liste des contrôles.', 'controle-parapente' ); ?></p>
 							<div class="cp-report-actions">
 								<a class="cp-btn cp-btn--primary" target="_blank" rel="noopener" href="<?php echo esc_url( $report_admin ); ?>"><?php esc_html_e( 'Ouvrir / imprimer en PDF', 'controle-parapente' ); ?></a>
 								<?php if ( $can_share ) : ?>
@@ -507,8 +543,8 @@ class CP_Atelier {
 			</div>
 
 			<div class="cp-savebar">
-				<span class="cp-dirty" hidden><?php esc_html_e( 'Modifications non enregistrées', 'controle-parapente' ); ?></span>
-				<button type="submit" class="cp-btn cp-btn--primary"><?php esc_html_e( 'Enregistrer la fiche', 'controle-parapente' ); ?></button>
+				<span class="cp-autosave" role="status" aria-live="polite" data-state="idle"><?php esc_html_e( 'Enregistrement automatique activé', 'controle-parapente' ); ?></span>
+				<button type="submit" class="cp-btn cp-btn--primary cp-save-btn" data-label="<?php esc_attr_e( 'Enregistrer la fiche', 'controle-parapente' ); ?>" data-label-notify="<?php esc_attr_e( 'Enregistrer et prévenir le client', 'controle-parapente' ); ?>"><?php esc_html_e( 'Enregistrer la fiche', 'controle-parapente' ); ?></button>
 			</div>
 		</form>
 

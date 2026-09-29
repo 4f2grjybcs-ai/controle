@@ -530,9 +530,15 @@ class CP_Admin {
 	 * @param array $raw     Données brutes (déjà wp_unslash).
 	 * @param bool  $notify  Prévenir le client si le statut change.
 	 */
-	public static function process( $post_id, array $raw, $notify ) {
+	/**
+	 * @param int         $post_id    Contrôle.
+	 * @param array       $raw        Données du formulaire.
+	 * @param bool        $notify     Prévenir le client si le statut change.
+	 * @param string|null $old_status Statut de référence pour la notification (par défaut : statut enregistré).
+	 */
+	public static function process( $post_id, array $raw, $notify, $old_status = null ) {
 		$data       = CP_Controle::sanitize( $raw, true );
-		$old_status = (string) get_post_meta( $post_id, CP_Controle::META_STATUS, true );
+		$old_status = null === $old_status ? (string) get_post_meta( $post_id, CP_Controle::META_STATUS, true ) : (string) $old_status;
 
 		if ( '' === $data['next_date'] && '' !== $data['check_date'] && '' !== $data['verdict'] && 'non_navigable' !== $data['verdict'] ) {
 			$data['next_date'] = CP_Controle::suggested_next_date( $data['check_date'] );

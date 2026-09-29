@@ -9,7 +9,7 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 
 - **Liste des contrôles** : filtres « À l'atelier / Terminés / Rendus / Tous », recherche (référence, pilote, aile, n° de série). Tous les rapports restent stockés et consultables.
 - **＋ Nouveau contrôle** : le numéro (ex. `CP-2026-0012`) est attribué immédiatement par le système.
-- **Fiche à onglets** : *Client & aile* · *Atelier · mesures* (porosité, résistance, calage, visuel) · *Conclusion* · *Rapport client*. Panneau « Suivi » (statut, verdict, dates) toujours visible. Barre « Enregistrer » fixe, alerte si des modifications ne sont pas enregistrées, raccourci Ctrl/Cmd + S.
+- **Fiche à onglets** : *Client & aile* · *Atelier · mesures* (porosité, résistance, calage, visuel) · *Conclusion* · *Rapport client*. Panneau « Suivi » (statut, verdict, dates) toujours visible. **Enregistrement automatique** : chaque modification est enregistrée en arrière-plan 1,5 s après la dernière saisie, sans recharger la page (« ✓ Enregistré à 14:32 » dans la barre du bas). Ctrl/Cmd + S ou le bouton enregistrent tout de suite. L'e-mail au client sur changement de statut n'est jamais envoyé automatiquement : le bouton devient « Enregistrer et prévenir le client ».
 - **Rapport client** : aperçu exact de ce que reçoit le client, impression / PDF, envoi par e-mail, copie du lien.
 - Le rapport affiche votre **logo**, vos **coordonnées** et votre **couleur d'accent** (*Contrôles → Réglages*).
 
