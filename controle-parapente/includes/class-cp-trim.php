@@ -438,6 +438,8 @@ class CP_Trim {
 		if ( null === $deviation ) {
 			return '';
 		}
+		// Évalué sur la valeur arrondie au mm, telle qu'elle est affichée.
+		$deviation = round( $deviation );
 		if ( 'F' === $row ) {
 			return $deviation >= (float) CP_Settings::get( 'brake_min' ) && $deviation <= (float) CP_Settings::get( 'brake_max' ) ? 'ok' : 'bad';
 		}
@@ -464,24 +466,27 @@ class CP_Trim {
 	}
 
 	/**
-	 * Formate un écart signé : +12 / −3,5.
+	 * Formate un écart signé, arrondi au mm : +12 / −4.
 	 */
 	public static function signed( $value ) {
 		if ( null === $value ) {
 			return '—';
 		}
-		$value = round( $value, 1 );
+		$value = round( $value );
 		if ( 0.0 === (float) $value ) {
 			return '0';
 		}
-		return ( $value > 0 ? '+' : '−' ) . number_format_i18n( abs( $value ), floor( abs( $value ) ) == abs( $value ) ? 0 : 1 );
+		return ( $value > 0 ? '+' : '−' ) . number_format_i18n( abs( $value ) );
 	}
 
+	/**
+	 * Longueur arrondie au mm.
+	 */
 	public static function length( $value ) {
 		if ( null === $value ) {
 			return '—';
 		}
-		return number_format_i18n( $value, floor( $value ) == $value ? 0 : 1 );
+		return number_format_i18n( round( $value ) );
 	}
 
 	public static function swatch( $color ) {

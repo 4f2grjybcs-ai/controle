@@ -67,6 +67,8 @@ Dans l'espace atelier, le calage a son propre onglet **« Calage »** dans la fi
 3. **Feuille de calage** : pour la 1ère ou la 2e mesure, côté gauche ou droit, seulement **Mesures voile → Résultat**, puis **Max / Min / Diff** (dernière colonne : la différence max − min entre les rangées).
    - En haut : **Tolérance ±** (12 mm par défaut selon la PMA, freins de 0 à +50 mm, boutons − / +) et **Offset** (ajouté à chaque mesure, alerte au-delà de ±1,5 % de la plus grande longueur), dates, 1ère mesure figée.
    - *Résultat = voile + offset − usine corrigée* : case verte dans la tolérance, **rouge dès qu'elle en sort** (la case de saisie se colore aussi).
+   - Tous les chiffres du calage sont **arrondis au mm** (pas de virgule). La colonne **Diff** (écart entre les rangées A à D pour un même numéro, freins exclus) passe aussi en vert / rouge selon la tolérance.
+   - **À faire pour revenir dans les normes** : colonne « À faire » par groupe (d'après la dernière mesure) et liste des suspentes hors tolérance de la mesure affichée, avec *Raccourcir / Allonger de X mm* (retour à la cote usine, minimum pour entrer dans la tolérance ; freins : retour dans la plage 0 à +50 mm).
    - Flèches et Entrée pour se déplacer ; collez une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
    - Sous la feuille : l'écart moyen par groupe et l'**aperçu du dessin client**, mis à jour pendant la saisie.
 

@@ -61,15 +61,16 @@
 		} );
 	}
 
+	/** Nombres du calage arrondis au mm (pas de virgule). */
 	function fmt( v ) {
-		return v === null ? '' : String( Math.round( v * 10 ) / 10 ).replace( '.', ',' );
+		return v === null ? '' : String( Math.round( v ) );
 	}
 
 	function signed( v ) {
 		if ( v === null || v === undefined ) {
 			return '';
 		}
-		v = Math.round( v * 10 ) / 10;
+		v = Math.round( v );
 		if ( v === 0 ) {
 			return '0';
 		}
@@ -90,10 +91,37 @@
 		if ( dev === null || dev === undefined ) {
 			return '';
 		}
+		dev = Math.round( dev ); // évalué sur la valeur affichée
 		if ( row === 'F' ) {
 			return dev >= brakeMin && dev <= brakeMax ? 'ok' : 'bad';
 		}
 		return Math.abs( dev ) <= tol() ? 'ok' : 'bad';
+	}
+
+	/**
+	 * Ce qu'il faut faire pour revenir dans les normes, ou null si l'écart est dans la tolérance.
+	 * Écart positif = suspente trop longue → raccourcir. Suspentes : retour à la cote usine
+	 * (minimum pour entrer dans ± tolérance) ; freins : retour dans la plage autorisée.
+	 */
+	function action( dev, row ) {
+		if ( level( dev, row ) !== 'bad' ) {
+			return null;
+		}
+		dev = Math.round( dev );
+		if ( row === 'F' ) {
+			return dev < brakeMin ?
+				{ verb: 'Allonger', mm: brakeMin - dev, hint: 'pour revenir à ' + signed( brakeMin ) } :
+				{ verb: 'Raccourcir', mm: dev - brakeMax, hint: 'pour revenir à ' + signed( brakeMax ) };
+		}
+		return {
+			verb: dev > 0 ? 'Raccourcir' : 'Allonger',
+			mm: Math.abs( dev ),
+			hint: 'min. ' + ( Math.abs( dev ) - Math.round( tol() ) ) + ' mm pour entrer dans ± ' + fmt( tol() )
+		};
+	}
+
+	function actionText( a ) {
+		return a ? ( a.verb === 'Raccourcir' ? '↓ ' : '↑ ' ) + a.verb + ' de ' + a.mm + ' mm' : '';
 	}
 
 	function today() {
@@ -559,6 +587,8 @@
 				td.textContent = signed( v );
 				td.classList.toggle( 'lvl-ok', level( v, id.charAt( 0 ) ) === 'ok' );
 				td.classList.toggle( 'lvl-bad', level( v, id.charAt( 0 ) ) === 'bad' );
+				var todo = action( v, id.charAt( 0 ) );
+				td.title = todo ? id + ' : ' + actionText( todo ) + ' (' + todo.hint + ')' : '';
 			}
 		} );
 
@@ -569,16 +599,24 @@
 			td.classList.toggle( 'is-bad', lv === 'bad' );
 		} );
 
-		// Différence et moyenne par numéro de suspente (entre les rangées).
+		// Différence par numéro de suspente entre les rangées A à D (les freins ont leur propre plage).
 		sheetBox.querySelectorAll( 'tbody tr[data-n]' ).forEach( function ( tr ) {
 			var values = [];
 			tr.querySelectorAll( '[data-calc="res"]' ).forEach( function ( td ) {
+				if ( td.getAttribute( 'data-id' ).charAt( 0 ) === 'F' ) {
+					return;
+				}
 				var v = result( view.set, td.getAttribute( 'data-id' ), view.side );
 				if ( v !== null ) {
 					values.push( v );
 				}
 			} );
 			var stats = { max: '', min: '', diff: '' };
+			var diffCell = tr.querySelector( '[data-stat="diff"]' );
+			var diffLevel = values.length > 1 ? ( Math.round( Math.max.apply( null, values ) - Math.min.apply( null, values ) ) <= tol() ? 'ok' : 'bad' ) : '';
+			diffCell.classList.toggle( 'lvl-ok', diffLevel === 'ok' );
+			diffCell.classList.toggle( 'lvl-bad', diffLevel === 'bad' );
+			diffCell.title = diffLevel === 'bad' ? 'Différence entre les rangées supérieure à la tolérance (± ' + fmt( tol() ) + ' mm)' : '';
 			if ( values.length ) {
 				var mx = Math.max.apply( null, values );
 				var mn = Math.min.apply( null, values );
@@ -645,10 +683,13 @@
 			summaryBox.innerHTML = '';
 			return;
 		}
-		var html = '<table class="cp-sheet-summary"><thead><tr><th>Groupe</th>';
+		var html = '<div class="cp-sheet-summary-wrap"><table class="cp-sheet-summary"><thead><tr><th>Groupe</th>';
 		sides.forEach( function ( side ) {
 			var label = both ? ( side === 'G' ? ' G' : ' D' ) : '';
 			html += '<th>1ère' + label + '</th><th>2e' + label + '</th>';
+		} );
+		sides.forEach( function ( side ) {
+			html += '<th class="cp-todo-h">À faire' + ( both ? ( side === 'G' ? ' G' : ' D' ) : '' ) + '</th>';
 		} );
 		html += '</tr></thead><tbody>';
 		var any = false;
@@ -677,10 +718,40 @@
 						html += '<td class="lvl-' + level( m, row ) + current + '">' + ( m === null ? '·' : signed( m ) ) + '</td>';
 					} );
 				} );
+				// À faire : d'après la dernière mesure disponible (2e, sinon 1ère).
+				sides.forEach( function ( side ) {
+					var latest = null;
+					[ 'final', 'initial' ].some( function ( set ) {
+						latest = mean( ids.map( function ( id ) {
+							return result( set, id, side );
+						} ).filter( function ( v ) {
+							return v !== null;
+						} ) );
+						return latest !== null;
+					} );
+					var todo = action( latest, row );
+					html += '<td class="cp-todo' + ( todo ? ' is-todo' : '' ) + '"' + ( todo ? ' title="' + esc( todo.hint ) + '"' : '' ) + '>' +
+						( latest === null ? '·' : ( todo ? esc( actionText( todo ) ) : '✓ OK' ) ) + '</td>';
+				} );
 				html += '</tr>';
 			} );
 		} );
-		html += '</tbody></table>';
+		html += '</tbody></table></div>';
+
+		// Suspentes hors tolérance de la mesure affichée, avec la correction à faire.
+		var todos = [];
+		rows.forEach( function ( row ) {
+			rowLines( row ).forEach( function ( l ) {
+				var a = action( result( view.set, l.id, view.side ), row );
+				if ( a ) {
+					todos.push( '<li style="--chip:' + esc( hex( l.color ) ) + '"><strong>' + esc( l.id ) + '</strong> ' + esc( actionText( a ) ) + ' <small>' + esc( a.hint ) + '</small></li>' );
+				}
+			} );
+		} );
+		var viewLabel = ( view.set === 'initial' ? '1ère mesure' : '2e mesure' ) + ( both ? ( view.side === 'G' ? ', côté gauche' : ', côté droit' ) : '' );
+		html += '<div class="cp-todo-list"><h4>À faire pour revenir dans les normes — ' + esc( viewLabel ) + '</h4>' +
+			( todos.length ? '<ul>' + todos.join( '' ) + '</ul>' : '<p class="cp-todo-ok">✓ Toutes les suspentes mesurées sont dans la tolérance.</p>' ) +
+			'<p class="description">↓ Raccourcir = suspente trop longue par rapport à l\'usine corrigée ; ↑ Allonger = trop courte. Valeur indiquée : retour à la cote usine (freins : retour dans la plage ' + signed( brakeMin ) + ' à ' + signed( brakeMax ) + ' mm).</p></div>';
 		summaryBox.innerHTML = any ? html : '<p class="cp-trim-empty">Saisissez les mesures pour voir les écarts par groupe.</p>';
 	}
 
