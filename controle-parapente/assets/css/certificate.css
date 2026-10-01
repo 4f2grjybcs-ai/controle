@@ -362,3 +362,8 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 @media print {
 	.cp-signature.is-signed { height: 38mm; }
 }
+
+/* Porosité : moyenne ; suspentes : résultat global */
+.cp-table tfoot .cp-total th { border-top: 2px solid var( --cp-line, #e5d7c7 ); font-weight: 800; background: #fbf5ee; }
+.cp-lines-result { margin: 4px 0 6px; padding: 8px 12px; border-radius: 10px; font-weight: 700; background: #eef6ec; }
+.cp-lines-result.lvl-bad { background: #fbe9e3; }

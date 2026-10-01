@@ -342,28 +342,40 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'P' ); ?>
 			<?php elseif ( $d['porosity'] ) : ?>
 				<?php
-				// PMA 5.2 : moyenne de chaque zone en l/m²/min sous 20 mbar ; < 360 Bon, 360-540 Acceptable, > 540 Échec.
+				// Résultat de chaque mesure (converti en l/m²/min) puis moyenne générale.
 				$seconds = 's' === $t['porosity_unit'];
-				$zones   = CP_Controle::porosity_zones( $d['porosity'], $t );
-				$values  = ! empty( $settings['porosity_show_values'] );
+				$flows   = array();
+				foreach ( $d['porosity'] as $row ) {
+					$flow = CP_Controle::porosity_lm2min( isset( $row['value'] ) ? $row['value'] : '', $t );
+					if ( null !== $flow ) {
+						$flows[] = array( 'zone' => $row['zone'], 'flow' => $flow, 'level' => CP_Controle::porosity_level( $row['value'], $t ) );
+					}
+				}
+				$avg       = $flows ? array_sum( wp_list_pluck( $flows, 'flow' ) ) / count( $flows ) : null;
+				$avg_level = null === $avg ? '' : ( $avg >= $t['porosity_reform'] ? 'bad' : ( $avg >= $t['porosity_alert'] ? 'warn' : 'ok' ) );
 				?>
 				<table class="cp-table">
 					<thead><tr>
-						<th><?php esc_html_e( 'Zone', 'controle-parapente' ); ?></th>
-						<th class="num"><?php esc_html_e( 'Mesures', 'controle-parapente' ); ?></th>
-						<?php if ( $values ) : ?><th class="num"><?php esc_html_e( 'Moyenne (l/m²/min)', 'controle-parapente' ); ?></th><?php endif; ?>
+						<th><?php esc_html_e( 'Point de mesure', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'Résultat (l/m²/min)', 'controle-parapente' ); ?></th>
 						<th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th>
 					</tr></thead>
 					<tbody>
-					<?php foreach ( $zones as $zone ) : ?>
+					<?php foreach ( $flows as $m ) : ?>
 						<tr>
-							<td><?php echo esc_html( $zone['zone'] ); ?></td>
-							<td class="num"><?php echo esc_html( $zone['n'] ); ?></td>
-							<?php if ( $values ) : ?><td class="num"><?php echo esc_html( $fmt( round( $zone['mean'] ) ) ); ?></td><?php endif; ?>
-							<td class="lvl-<?php echo esc_attr( $zone['level'] ); ?>"><?php echo esc_html( $level_text( $zone['level'] ) ); ?></td>
+							<td><?php echo esc_html( $m['zone'] ); ?></td>
+							<td class="num"><?php echo esc_html( $fmt( round( $m['flow'] ) ) ); ?></td>
+							<td class="lvl-<?php echo esc_attr( $m['level'] ); ?>"><?php echo esc_html( $level_text( $m['level'] ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 					</tbody>
+					<?php if ( null !== $avg ) : ?>
+						<tfoot><tr class="cp-total">
+							<th><?php esc_html_e( 'Moyenne', 'controle-parapente' ); ?></th>
+							<th class="num"><?php echo esc_html( $fmt( round( $avg ) ) ); ?></th>
+							<th class="lvl-<?php echo esc_attr( $avg_level ); ?>"><?php echo esc_html( $level_text( $avg_level ) ); ?></th>
+						</tr></tfoot>
+					<?php endif; ?>
 				</table>
 				<p class="cp-small">
 					<?php
@@ -410,35 +422,32 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'L' ); ?>
 			<?php elseif ( $d['lines'] ) : ?>
 				<?php
-				$levels     = CP_Controle::line_levels();
+				// Résultat global (le détail par suspente reste dans la fiche atelier).
+				$tested = 0;
+				$failed = 0;
+				foreach ( $d['lines'] as $row ) {
+					$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
+					if ( '' !== $level ) {
+						++$tested;
+						$failed += 'bad' === $level ? 1 : 0;
+					}
+				}
 				?>
-				<table class="cp-table">
-					<thead><tr>
-						<th><?php esc_html_e( 'Suspente testée', 'controle-parapente' ); ?></th>
-						<th class="num"><?php esc_html_e( 'À neuf (daN)', 'controle-parapente' ); ?></th>
-						<th class="num"><?php esc_html_e( 'Rupture (daN)', 'controle-parapente' ); ?></th>
-						<th class="num"><?php esc_html_e( 'Minimum (daN)', 'controle-parapente' ); ?></th>
-						<th class="num"><?php esc_html_e( '% du neuf', 'controle-parapente' ); ?></th>
-						<th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th>
-					</tr></thead>
-					<tbody>
-					<?php foreach ( $d['lines'] as $row ) : ?>
+				<?php if ( $tested ) : ?>
+					<p class="cp-lines-result lvl-<?php echo esc_attr( $failed ? 'bad' : 'ok' ); ?>">
 						<?php
-						$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
-						$new   = isset( $row['new'] ) && is_numeric( $row['new'] ) && (float) $row['new'] > 0 ? (float) $row['new'] : null;
-						$lvl   = isset( $row['level'], $levels[ $row['level'] ] ) ? $levels[ $row['level'] ] : '';
+						echo esc_html(
+							$failed
+								? ( 1 === $tested
+									? __( 'La suspente testée est sous le minimum requis : Échec.', 'controle-parapente' )
+									/* translators: 1: suspentes en échec, 2: suspentes testées */
+									: sprintf( _n( '%1$s suspente sur %2$s testées sous le minimum requis : Échec.', '%1$s suspentes sur %2$s testées sous le minimum requis : Échec.', $failed, 'controle-parapente' ), $failed, $tested ) )
+								/* translators: %s: suspentes testées */
+								: sprintf( _n( '%s suspente testée : résistance conforme au minimum requis.', '%s suspentes testées : résistance conforme au minimum requis.', $tested, 'controle-parapente' ), $tested )
+						);
 						?>
-						<tr>
-							<td><?php echo esc_html( $row['line'] ); ?><?php if ( $lvl && ! preg_match( '/niveau/iu', $row['line'] ) ) : ?><span class="cp-small"><?php echo esc_html( $lvl ); ?></span><?php endif; ?></td>
-							<td class="num"><?php echo esc_html( null === $new ? '—' : $fmt( $new ) ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $row['measured'] ) ); ?></td>
-							<td class="num"><?php echo esc_html( $fmt( $row['minimum'] ) ); ?></td>
-							<td class="num"><?php echo esc_html( null !== $new && is_numeric( $row['measured'] ) ? round( (float) $row['measured'] / $new * 100 ) . ' %' : '—' ); ?></td>
-							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( 'ok' === $level ? __( 'Conforme', 'controle-parapente' ) : ( 'bad' === $level ? __( 'Échec', 'controle-parapente' ) : '—' ) ); ?></td>
-						</tr>
-					<?php endforeach; ?>
-					</tbody>
-				</table>
+					</p>
+				<?php endif; ?>
 				<p class="cp-small">
 					<?php
 					echo esc_html(
