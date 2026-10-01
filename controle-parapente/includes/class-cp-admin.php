@@ -47,6 +47,7 @@ class CP_Admin {
 		wp_enqueue_style( 'cp-admin', CP_URL . 'assets/css/admin.css', array(), cp_asset_ver( 'assets/css/admin.css' ) );
 		wp_enqueue_script( 'cp-admin', CP_URL . 'assets/js/admin.js', array(), cp_asset_ver( 'assets/js/admin.js' ), true );
 		wp_enqueue_script( 'cp-trim', CP_URL . 'assets/js/trim.js', array(), cp_asset_ver( 'assets/js/trim.js' ), true );
+		wp_enqueue_script( 'cp-photos', CP_URL . 'assets/js/photos.js', array(), cp_asset_ver( 'assets/js/photos.js' ), true );
 		wp_localize_script(
 			'cp-admin',
 			'cpAdmin',
@@ -89,6 +90,7 @@ class CP_Admin {
 		add_meta_box( 'cp-porosity', __( 'Porosité du tissu', 'controle-parapente' ), array( __CLASS__, 'box_porosity' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-strength', __( 'Résistance tissu & suspentes', 'controle-parapente' ), array( __CLASS__, 'box_strength' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-trim', __( 'Calage (longueurs de suspentage)', 'controle-parapente' ), array( __CLASS__, 'box_trim' ), $pt, 'normal', 'default' );
+		add_meta_box( 'cp-photos', __( 'Photos', 'controle-parapente' ), array( 'CP_Photos', 'render_box' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-visual', __( 'Contrôle visuel', 'controle-parapente' ), array( __CLASS__, 'box_visual' ), $pt, 'normal', 'default' );
 		add_meta_box( 'cp-conclusion', __( 'Travaux & conclusions', 'controle-parapente' ), array( __CLASS__, 'box_conclusion' ), $pt, 'normal', 'default' );
 	}

@@ -483,6 +483,21 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 			<?php CP_Trim::render_certificate( $d['trim'], $d['trim_adjusted'], $settings['title_geometric'], $is_admin, false ); ?>
 		<?php endif; ?>
 
+		<?php $report_photos = CP_Photos::for_report( $d ); ?>
+		<?php if ( $report_photos ) : ?>
+			<section class="cp-inspection">
+				<h2><?php esc_html_e( 'Photos', 'controle-parapente' ); ?></h2>
+				<div class="cp-photos-report">
+					<?php foreach ( $report_photos as $photo ) : ?>
+						<figure>
+							<img src="<?php echo esc_url( wp_get_attachment_image_url( $photo['id'], 'large' ) ); ?>" alt="<?php echo esc_attr( $photo['caption'] ); ?>" />
+							<?php if ( $photo['caption'] ) : ?><figcaption><?php echo esc_html( $photo['caption'] ); ?></figcaption><?php endif; ?>
+						</figure>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif; ?>
+
 		<?php if ( $d['repairs'] ) : ?>
 			<section>
 				<h2><?php esc_html_e( 'Réparations / pièces remplacées', 'controle-parapente' ); ?></h2>

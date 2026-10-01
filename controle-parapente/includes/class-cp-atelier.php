@@ -276,7 +276,7 @@ class CP_Atelier {
 		}
 		?>
 	</main>
-	<?php wp_print_scripts( array( 'cp-admin', 'cp-trim', 'cp-atelier' ) ); ?>
+	<?php wp_print_scripts( array( 'cp-admin', 'cp-trim', 'cp-photos', 'cp-atelier' ) ); ?>
 </body>
 </html>
 		<?php
@@ -458,6 +458,7 @@ class CP_Atelier {
 			'client'     => __( 'Client & aile', 'controle-parapente' ),
 			'mesures'    => __( 'Atelier · mesures', 'controle-parapente' ),
 			'calage'     => __( 'Calage', 'controle-parapente' ),
+			'photos'     => __( 'Photos', 'controle-parapente' ),
 			'conclusion' => __( 'Conclusion', 'controle-parapente' ),
 			'rapport'    => __( 'Rapport client', 'controle-parapente' ),
 		);
@@ -512,6 +513,9 @@ class CP_Atelier {
 					</div>
 					<div class="cp-panel" data-panel="calage">
 						<?php self::card( __( 'Calage', 'controle-parapente' ), array( 'CP_Admin', 'box_trim' ), $post, 'cp-card--wide' ); ?>
+					</div>
+					<div class="cp-panel" data-panel="photos">
+						<?php self::card( __( 'Photos du contrôle', 'controle-parapente' ), array( 'CP_Photos', 'render_box' ), $post, 'cp-card--wide' ); ?>
 					</div>
 					<div class="cp-panel" data-panel="conclusion">
 						<?php self::card( __( 'Conclusions', 'controle-parapente' ), array( 'CP_Admin', 'box_conclusion' ), $post ); ?>

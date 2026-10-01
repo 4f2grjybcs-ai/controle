@@ -13,6 +13,8 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 - **Rapport client** : aperçu exact de ce que reçoit le client, impression / PDF, envoi par e-mail, copie du lien.
 - Le rapport affiche votre **logo**, vos **coordonnées** et votre **couleur d'accent** (*Contrôles → Réglages*).
 
+**Photos** (onglet *Photos* de l'atelier, ou boîte « Photos » dans l'admin) : « Prendre une photo » ouvre l'appareil photo du téléphone ou de la tablette, « Ajouter depuis la galerie » permet d'en choisir plusieurs. Les photos sont réduites (1600 px) puis enregistrées en ligne dans la médiathèque, rattachées au contrôle ; légende par photo, case « Sur le rapport » pour les montrer au client (section Photos du rapport et du PDF). La croix supprime définitivement la photo.
+
 **Télécharger le PDF** : le bouton du rapport (et de l'onglet *Rapport client* de l'atelier) crée directement un fichier PDF A4 « Rapport-CP-…pdf », sans l'adresse web ni la date que le navigateur ajoute à l'impression ; les blocs ne sont jamais coupés entre deux pages et chaque page porte la référence et son numéro. Bibliothèques incluses dans le plugin (jsPDF, html2canvas-pro, licence MIT), aucun service externe.
 
 **Signature et tampon numériques** (*Réglages → Textes du rapport*) : signez directement dans le cadre (souris, doigt ou stylet) ou importez une image ; tampon rond généré automatiquement (nom de l'atelier, SIRET / agrément, date du contrôle, couleur d'encre réglable) ou image de votre propre tampon (le fond blanc devient transparent). Ils apparaissent dans la case « Signature et cachet » du rapport ; case à décocher dans le panneau *Suivi* pour ne pas signer un rapport.

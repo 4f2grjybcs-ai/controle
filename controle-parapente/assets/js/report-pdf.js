@@ -18,7 +18,7 @@
 
 	// Blocs à ne jamais couper entre deux pages (mêmes règles que l'impression).
 	var ATOMIC = '.cp-head, .cp-hero, .cp-verdict-box, .cp-partial, .cp-note, .cp-cursor, .cp-state-basis, .cp-summary-card, .cp-metrics, ' +
-		'.cp-cols > div, .cp-notdone, .cp-wing-figure, .cp-wing-legend, .cp-foot, .cp-internal, tr, img, svg, p, li, dt, dd';
+		'.cp-cols > div, .cp-notdone, .cp-photos-report figure, .cp-wing-figure, .cp-wing-legend, .cp-foot, .cp-internal, tr, img, svg, p, li, dt, dd';
 	var KEEP_WITH_NEXT = 'h1, h2, h3, .cp-eyebrow, figcaption';
 
 	function lib() {
