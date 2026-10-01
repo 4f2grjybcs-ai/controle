@@ -113,7 +113,11 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 </head>
 <body>
 	<div class="cp-toolbar">
-		<button type="button" onclick="window.print()"><?php esc_html_e( 'Imprimer / enregistrer en PDF', 'controle-parapente' ); ?></button>
+		<button type="button" class="cp-pdf-download"
+			data-reference="<?php echo esc_attr( $d['reference'] ); ?>"
+			data-footer="<?php echo esc_attr( trim( $settings['workshop_name'] . ' - ' . $settings['report_title'] . ' ' . $d['reference'], ' -' ) ); ?>"
+			data-busy="<?php esc_attr_e( 'Préparation du PDF…', 'controle-parapente' ); ?>"
+			data-error="<?php esc_attr_e( 'Le PDF n\'a pas pu être créé. Utilisez l\'impression du navigateur.', 'controle-parapente' ); ?>"><?php esc_html_e( 'Télécharger le PDF', 'controle-parapente' ); ?></button>
 	</div>
 
 	<main class="cp-sheet">
@@ -535,5 +539,8 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 			</div>
 		</footer>
 	</main>
+	<script src="<?php echo esc_url( CP_URL . 'assets/vendor/html2canvas-pro.min.js?ver=' . cp_asset_ver( 'assets/vendor/html2canvas-pro.min.js' ) ); ?>"></script>
+	<script src="<?php echo esc_url( CP_URL . 'assets/vendor/jspdf.umd.min.js?ver=' . cp_asset_ver( 'assets/vendor/jspdf.umd.min.js' ) ); ?>"></script>
+	<script src="<?php echo esc_url( CP_URL . 'assets/js/report-pdf.js?ver=' . cp_asset_ver( 'assets/js/report-pdf.js' ) ); ?>"></script>
 </body>
 </html>

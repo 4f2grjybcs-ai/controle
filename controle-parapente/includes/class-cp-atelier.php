@@ -521,7 +521,8 @@ class CP_Atelier {
 							<h2><?php esc_html_e( 'Rapport à remettre au client', 'controle-parapente' ); ?></h2>
 							<p class="cp-muted"><?php esc_html_e( 'Aperçu du rapport tel qu\'il est enregistré (mis à jour automatiquement). Il reste consultable à tout moment depuis la liste des contrôles.', 'controle-parapente' ); ?></p>
 							<div class="cp-report-actions">
-								<a class="cp-btn cp-btn--primary" target="_blank" rel="noopener" href="<?php echo esc_url( $report_admin ); ?>"><?php esc_html_e( 'Ouvrir / imprimer en PDF', 'controle-parapente' ); ?></a>
+								<a class="cp-btn cp-btn--primary" target="_blank" rel="noopener" href="<?php echo esc_url( $report_admin . '&pdf=1' ); ?>"><?php esc_html_e( 'Télécharger le PDF', 'controle-parapente' ); ?></a>
+								<a class="cp-btn" target="_blank" rel="noopener" href="<?php echo esc_url( $report_admin ); ?>"><?php esc_html_e( 'Ouvrir le rapport', 'controle-parapente' ); ?></a>
 								<?php if ( $can_share ) : ?>
 									<button type="submit" class="cp-btn" form="cp-send-report" <?php disabled( ! is_email( $d['email'] ) ); ?>><?php esc_html_e( 'Envoyer par e-mail au client', 'controle-parapente' ); ?></button>
 									<button type="button" class="cp-btn cp-copy" data-copy="<?php echo esc_attr( CP_Controle::public_certificate_url( $post_id ) ); ?>"><?php esc_html_e( 'Copier le lien client', 'controle-parapente' ); ?></button>
