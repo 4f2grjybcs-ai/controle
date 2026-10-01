@@ -13,6 +13,8 @@ demandes en ligne, fiche de contrôle technique, certificat imprimable, suivi cl
 - **Rapport client** : aperçu exact de ce que reçoit le client, impression / PDF, envoi par e-mail, copie du lien.
 - Le rapport affiche votre **logo**, vos **coordonnées** et votre **couleur d'accent** (*Contrôles → Réglages*).
 
+**Signature et tampon numériques** (*Réglages → Textes du rapport*) : signez directement dans le cadre (souris, doigt ou stylet) ou importez une image ; tampon rond généré automatiquement (nom de l'atelier, SIRET / agrément, date du contrôle, couleur d'encre réglable) ou image de votre propre tampon (le fond blanc devient transparent). Ils apparaissent dans la case « Signature et cachet » du rapport ; case à décocher dans le panneau *Suivi* pour ne pas signer un rapport.
+
 ## Fonctionnalités
 
 - **Formulaire de demande** (`[cp_demande_controle]`) : coordonnées du pilote, équipement (marque, modèle, taille, n° de série, homologation…), prestations (contrôle, recalage, réparation, repliage secours), mode de dépôt. Une référence unique est attribuée (ex. `CP-2026-0001`) et des e-mails sont envoyés à l'atelier et au client. Protections : nonce, champ pot de miel anti-robots, limite de 5 demandes/heure par IP, consentement RGPD.
@@ -63,7 +65,7 @@ Dans l'espace atelier, le calage a son propre onglet **« Calage »** dans la fi
 
 1. **Structure & couleurs** : pour chaque rangée A, B, C, D (et les **freins**, à part), ajoutez les groupes en choisissant leur **couleur**, puis le nombre de suspentes de chaque groupe, du centre vers le bout d'aile.
    - **Cases vides** : chaque groupe peut avoir des cases vides, pour que les groupes restent face à face d'une rangée à l'autre (ex. 4 A, 4 B, 4 C mais 5 D). Le bouton **« Aligner les groupes »** les calcule automatiquement ; dans le plan du groupe, **chaque case se clique indépendamment** : active (suspente numérotée) ou vide (hachurée), au début, au milieu, à la fin, plusieurs à la suite. Le nombre de suspentes et de cases vides se met à jour tout seul.
-2. **Mesures usine** : les cotes du constructeur, saisies une seule fois pour la fiche, avec l'**élévateur** ; l'usine corrigée s'affiche à côté (*usine + élévateur*).
+2. **Mesures usine** : les cotes du constructeur, saisies une seule fois pour la fiche, avec l'**élévateur** ; l'usine corrigée s'affiche à côté (*usine + élévateur*, sauf pour les freins qui ne passent pas par l'élévateur).
 3. **Feuille de calage** : pour la 1ère ou la 2e mesure, côté gauche ou droit, seulement **Mesures voile → Résultat**, puis **Max / Min / Diff** (dernière colonne : la différence max − min entre les rangées).
    - En haut : **Tolérance ±** (12 mm par défaut selon la PMA, freins de 0 à +50 mm, boutons − / +) et **Offset** (ajouté à chaque mesure, alerte au-delà de ±1,5 % de la plus grande longueur), dates, 1ère mesure figée.
    - *Résultat = voile + offset − usine corrigée* : case verte dans la tolérance, **rouge dès qu'elle en sort** (la case de saisie se colore aussi).

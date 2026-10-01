@@ -482,8 +482,19 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 		<?php endif; ?>
 
 		<footer class="cp-foot">
-			<div class="cp-signature">
+			<?php
+			$signed    = '1' === $d['sign_report'];
+			$signature = $signed ? (string) $settings['signature_image'] : '';
+			$stamp     = $signed ? CP_Settings::stamp_svg( $d['check_date'] ? date_i18n( 'd/m/Y', strtotime( $d['check_date'] ) ) : '' ) : '';
+			?>
+			<div class="cp-signature<?php echo $signature || $stamp ? ' is-signed' : ''; ?>">
 				<span class="cp-small"><?php echo esc_html( $settings['signature_label'] ); ?></span>
+				<?php if ( $stamp ) : ?>
+					<?php echo $stamp; // phpcs:ignore WordPress.Security.EscapeOutput -- SVG construit et échappé par CP_Settings::stamp_svg(). ?>
+				<?php endif; ?>
+				<?php if ( $signature ) : ?>
+					<img class="cp-signature-img" src="<?php echo esc_attr( $signature ); ?>" alt="<?php esc_attr_e( 'Signature', 'controle-parapente' ); ?>" />
+				<?php endif; ?>
 				<?php if ( $d['technician'] || $d['check_date'] ) : ?>
 					<span class="cp-signature-who"><?php echo esc_html( trim( $d['technician'] . ( $d['check_date'] ? ' — ' . CP_Controle::format_date( $d['check_date'] ) : '' ), ' —' ) ); ?></span>
 				<?php endif; ?>

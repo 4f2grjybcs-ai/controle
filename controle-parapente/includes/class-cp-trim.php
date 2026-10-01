@@ -317,6 +317,10 @@ class CP_Trim {
 		if ( ! isset( $trim['factory'][ $id ] ) || '' === $trim['factory'][ $id ] ) {
 			return null;
 		}
+		// Les freins ne passent pas par l'élévateur : pas de longueur d'élévateur ajoutée.
+		if ( 'F' === substr( (string) $id, 0, 1 ) ) {
+			return (float) $trim['factory'][ $id ];
+		}
 		return (float) $trim['factory'][ $id ] + (float) $trim['riser_length'];
 	}
 
@@ -455,7 +459,7 @@ class CP_Trim {
 		$max = 0;
 		foreach ( (array) $trim['factory'] as $id => $value ) {
 			if ( is_numeric( $value ) ) {
-				$max = max( $max, (float) $value + (float) $trim['riser_length'] );
+				$max = max( $max, (float) self::corrected_factory( $trim, $id ) );
 			}
 		}
 		if ( ! $max ) {
@@ -554,8 +558,8 @@ class CP_Trim {
 			<!-- 2. Mesures usine (saisies une seule fois) -->
 			<div class="cp-trim-step" data-step-panel="usine">
 				<div class="cp-sheet-toolbar">
-					<?php $stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Ajouté aux cotes usine.', 'controle-parapente' ) ); ?>
-					<p class="cp-sheet-formula"><?php esc_html_e( 'Longueurs totales du manuel constructeur (mm), une seule fois pour toute la fiche. Usine corrigée = usine + élévateur. Flèches / Entrée pour se déplacer ; vous pouvez coller une colonne depuis Excel.', 'controle-parapente' ); ?></p>
+					<?php $stepper( 'cp-trim-riser', 'cp[trim][riser_length]', $trim['riser_length'], __( 'Élévateur', 'controle-parapente' ), __( 'Ajouté aux cotes usine (sauf freins).', 'controle-parapente' ) ); ?>
+					<p class="cp-sheet-formula"><?php esc_html_e( 'Longueurs totales du manuel constructeur (mm), une seule fois pour toute la fiche. Usine corrigée = usine + élévateur (freins : usine seule). Flèches / Entrée pour se déplacer ; vous pouvez coller une colonne depuis Excel.', 'controle-parapente' ); ?></p>
 				</div>
 				<div class="cp-sheet-wrap"><div class="cp-sheet-grid cp-sheet-factory"></div></div>
 			</div>

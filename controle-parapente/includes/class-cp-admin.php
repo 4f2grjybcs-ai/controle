@@ -152,6 +152,13 @@ class CP_Admin {
 		self::field( 'technician', __( 'Contrôleur', 'controle-parapente' ), $d['technician'] ? $d['technician'] : wp_get_current_user()->display_name );
 		?>
 		<p>
+			<input type="hidden" name="cp[sign_report_field]" value="1" />
+			<label>
+				<input type="checkbox" name="cp[sign_report]" value="1" <?php checked( $d['sign_report'], '1' ); ?> />
+				<?php esc_html_e( 'Signature et tampon sur le rapport', 'controle-parapente' ); ?>
+			</label>
+		</p>
+		<p>
 			<label>
 				<input type="checkbox" name="cp_notify" value="1" checked="checked" />
 				<?php esc_html_e( 'Prévenir le client par e-mail si le statut change', 'controle-parapente' ); ?>

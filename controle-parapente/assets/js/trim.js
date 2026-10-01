@@ -297,11 +297,14 @@
 		return state[ set ][ id ] && state[ set ][ id ][ side ] !== undefined ? state[ set ][ id ][ side ] : '';
 	}
 
-	/** Usine corrigée = usine + élévateur (l'offset s'ajoute aux mesures, PMA 5.5). */
+	/** Usine corrigée = usine + élévateur, sauf pour les freins (l'offset s'ajoute aux mesures, PMA 5.5). */
 	function corrected( id ) {
 		var f = num( factory( id ) );
 		if ( f === null ) {
 			return null;
+		}
+		if ( String( id ).charAt( 0 ) === 'F' ) {
+			return f;
 		}
 		return f + ( num( riserInput ? riserInput.value : '' ) || 0 );
 	}

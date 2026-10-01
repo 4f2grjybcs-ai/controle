@@ -131,6 +131,16 @@ class CP_Settings {
 			'thanks_text'         => array( 'rapport', 'text', __( 'Phrase de remerciement', 'controle-parapente' ), __( 'Merci de votre confiance, et bons vols !', 'controle-parapente' ) ),
 			'certificate_footer'  => array( 'rapport', 'textarea', __( 'Mention en bas du rapport', 'controle-parapente' ), __( 'Ce contrôle atteste de l\'état du matériel à la date indiquée. Il ne dispense pas le pilote d\'une visite pré-vol à chaque utilisation.', 'controle-parapente' ) ),
 			'signature_label'     => array( 'rapport', 'text', __( 'Libellé de la zone de signature', 'controle-parapente' ), __( 'Signature et cachet de l\'atelier', 'controle-parapente' ) ),
+			'h_sign'              => array( 'rapport', 'heading', __( 'Signature et tampon numériques', 'controle-parapente' ) ),
+			'signature_image'     => array( 'rapport', 'image_data', __( 'Signature', 'controle-parapente' ), '', __( 'Signez dans le cadre (souris, doigt ou stylet) ou importez une image de votre signature. Le fond blanc d\'une image importée devient transparent.', 'controle-parapente' ), array( 'pad' => true ) ),
+			'stamp_mode'          => array( 'rapport', 'select', __( 'Tampon', 'controle-parapente' ), 'auto', __( 'Le tampon automatique reprend le nom de l\'atelier, le SIRET / n° d\'agrément et la date du contrôle.', 'controle-parapente' ), array(
+				'auto'  => __( 'Tampon généré automatiquement', 'controle-parapente' ),
+				'image' => __( 'Image de mon tampon', 'controle-parapente' ),
+				'none'  => __( 'Pas de tampon', 'controle-parapente' ),
+			) ),
+			'stamp_center'        => array( 'rapport', 'text', __( 'Texte au centre du tampon automatique', 'controle-parapente' ), __( 'CONTRÔLÉ', 'controle-parapente' ) ),
+			'stamp_color'         => array( 'rapport', 'color', __( 'Couleur de l\'encre du tampon', 'controle-parapente' ), '#1f4e8c' ),
+			'stamp_image'         => array( 'rapport', 'image_data', __( 'Image de mon tampon', 'controle-parapente' ), '', __( 'Scan ou photo du tampon sur fond blanc (le blanc devient transparent). Utilisée avec « Image de mon tampon ».', 'controle-parapente' ), array( 'pad' => false ) ),
 
 			/* ---------------- Listes ---------------- */
 			'inspection_types'    => array( 'listes', 'lines', __( 'Types d\'inspection', 'controle-parapente' ), "Révision périodique | V P T L G E\nInspection intermédiaire | V P T G\nInspection basique | V P T G\nInspection mécanique | P T L\nInspection géométrique | G\nInspection visuelle / après incident | V", __( 'Une par ligne : « Nom | lettres des tests inclus ». V = visuelle, P = porosité, T = déchirure, L = résistance des suspentes, G = calage. Les tests absents apparaissent « Non réalisé » sur le rapport.', 'controle-parapente' ) ),
@@ -341,6 +351,53 @@ class CP_Settings {
 	}
 
 	/**
+	 * Tampon de l'atelier dessiné en SVG (encre, double cercle, texte en arc), ou '' si désactivé.
+	 *
+	 * @param string $date Date affichée au centre (déjà formatée).
+	 */
+	public static function stamp_svg( $date = '' ) {
+		$mode = self::get( 'stamp_mode' );
+		if ( 'image' === $mode ) {
+			$img = (string) self::get( 'stamp_image' );
+			return $img ? '<img class="cp-stamp cp-stamp--image" src="' . esc_attr( $img ) . '" alt="" />' : '';
+		}
+		if ( 'auto' !== $mode ) {
+			return '';
+		}
+		$ink    = sanitize_hex_color( (string) self::get( 'stamp_color' ) );
+		$ink    = $ink ? $ink : '#1f4e8c';
+		$name   = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( (string) self::get( 'workshop_name' ) ) : strtoupper( (string) self::get( 'workshop_name' ) );
+		$bottom = (string) self::get( 'workshop_approval' );
+		$center = (string) self::get( 'stamp_center' );
+		$len    = static function ( $text ) {
+			return function_exists( 'mb_strlen' ) ? mb_strlen( $text ) : strlen( $text );
+		};
+		// Texte en arc : resserré si trop long pour l'arc disponible.
+		$fit = static function ( $text, $size, $room ) use ( $len ) {
+			return $len( $text ) * $size * 0.66 > $room ? ' textLength="' . $room . '" lengthAdjust="spacingAndGlyphs"' : '';
+		};
+		$center_size = $center ? min( 21, round( 104 / max( 1, $len( $center ) * 0.68 ), 1 ) ) : 0;
+
+		$svg  = '<svg class="cp-stamp" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' . esc_attr__( 'Tampon de l\'atelier', 'controle-parapente' ) . '">';
+		$svg .= '<defs><path id="cp-stamp-top" d="M 28,100 A 72,72 0 0 1 172,100"/><path id="cp-stamp-bottom" d="M 20,100 A 80,80 0 0 0 180,100"/>';
+		$svg .= '<filter id="cp-stamp-ink"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.9 1.35" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter></defs>';
+		$svg .= '<g transform="rotate(-9 100 100)" fill="' . esc_attr( $ink ) . '" stroke="' . esc_attr( $ink ) . '" filter="url(#cp-stamp-ink)" opacity="0.9">';
+		$svg .= '<circle cx="100" cy="100" r="94" fill="none" stroke-width="4"/><circle cx="100" cy="100" r="87" fill="none" stroke-width="1.4"/><circle cx="100" cy="100" r="58" fill="none" stroke-width="1.4"/>';
+		$svg .= '<text font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="15" letter-spacing="1.5" stroke="none"><textPath href="#cp-stamp-top" startOffset="50%" text-anchor="middle"' . $fit( $name, 15, 180 ) . '>' . esc_html( $name ) . '</textPath></text>';
+		if ( '' !== $bottom ) {
+			$svg .= '<text font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="10.5" letter-spacing="0.8" stroke="none"><textPath href="#cp-stamp-bottom" startOffset="50%" text-anchor="middle"' . $fit( $bottom, 10.5, 140 ) . '>' . esc_html( $bottom ) . '</textPath></text>';
+		}
+		$svg .= '<text x="25" y="105" font-size="13" text-anchor="middle" stroke="none">★</text><text x="175" y="105" font-size="13" text-anchor="middle" stroke="none">★</text>';
+		if ( $center ) {
+			$svg .= '<text x="100" y="' . ( $date ? 98 : 107 ) . '" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="' . $center_size . '" text-anchor="middle" stroke="none">' . esc_html( $center ) . '</text>';
+		}
+		if ( $date ) {
+			$svg .= '<line x1="62" y1="106" x2="138" y2="106" stroke-width="1"/><text x="100" y="' . ( $center ? 122 : 106 ) . '" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="12.5" text-anchor="middle" stroke="none">' . esc_html( $date ) . '</text>';
+		}
+		return $svg . '</g></svg>';
+	}
+
+	/**
 	 * URL du logo de l'atelier (ou '').
 	 *
 	 * @param string $size Taille d'image.
@@ -454,6 +511,17 @@ class CP_Settings {
 				case 'logo':
 					$out[ $key ] = absint( $value );
 					break;
+				case 'image_data':
+					// Image PNG encodée (signature dessinée ou image importée, réduite dans le navigateur).
+					if ( null !== $value ) {
+						$value = trim( (string) $value );
+						if ( '' === $value ) {
+							$out[ $key ] = '';
+						} elseif ( strlen( $value ) < 600000 && preg_match( '#^data:image/png;base64,[A-Za-z0-9+/=]+$#', $value ) ) {
+							$out[ $key ] = $value;
+						}
+					}
+					break;
 				case 'date':
 					$out[ $key ] = CP_Controle::sanitize_date( (string) $value );
 					break;
@@ -551,6 +619,19 @@ class CP_Settings {
 					printf( '<option value="%s"%s>%s</option>', esc_attr( $opt ), selected( $value, $opt, false ), esc_html( $opt_label ) );
 				}
 				echo '</select>';
+				break;
+			case 'image_data':
+				$pad = ! empty( $field[5]['pad'] );
+				printf( '<div class="cp-imgdata%s" data-pad="%d">', $pad ? ' has-pad' : '', $pad ? 1 : 0 );
+				printf( '<input type="hidden" id="%1$s" name="%2$s" value="%3$s" class="cp-imgdata-value" />', esc_attr( $id ), esc_attr( $name ), esc_attr( $value ) );
+				if ( $pad ) {
+					echo '<canvas class="cp-pad" width="900" height="300" aria-label="' . esc_attr__( 'Zone de signature', 'controle-parapente' ) . '"></canvas>';
+				}
+				printf( '<img class="cp-imgdata-preview" src="%s" alt="" %s />', esc_attr( $value ), $value && ! $pad ? '' : 'hidden' );
+				echo '<p class="cp-imgdata-actions">';
+				printf( '<label class="button">%s<input type="file" accept="image/*" class="cp-imgdata-file" hidden /></label> ', esc_html__( 'Importer une image', 'controle-parapente' ) );
+				printf( '<button type="button" class="button cp-imgdata-clear">%s</button>', $pad ? esc_html__( 'Effacer', 'controle-parapente' ) : esc_html__( 'Retirer', 'controle-parapente' ) );
+				echo '</p></div>';
 				break;
 			case 'logo':
 				$url = self::logo_url();

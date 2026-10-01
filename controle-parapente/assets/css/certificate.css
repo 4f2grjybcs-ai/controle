@@ -352,3 +352,13 @@ h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var( --cp-mut
 .st-limite { color: #c56a2d; font-weight: 700; }
 .st-reforme { color: var( --cp-bad ); font-weight: 700; }
 .cp-table td .cp-small { display: block; }
+
+/* Signature et tampon numériques */
+.cp-signature.is-signed { position: relative; height: 38mm; }
+.cp-signature-img { position: relative; z-index: 2; display: block; max-width: 40mm; max-height: 17mm; margin: 2mm 0 0 2mm; object-fit: contain; object-position: left bottom; }
+.cp-signature .cp-stamp { position: absolute; z-index: 1; right: 3mm; top: 50%; width: 29mm; height: 29mm; transform: translateY( -50% ); pointer-events: none; }
+.cp-signature .cp-stamp--image { object-fit: contain; opacity: 0.92; }
+.cp-signature.is-signed .cp-signature-who { position: relative; z-index: 2; }
+@media print {
+	.cp-signature.is-signed { height: 38mm; }
+}

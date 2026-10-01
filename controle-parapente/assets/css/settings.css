@@ -18,3 +18,20 @@
 	padding: 12px 0;
 	background: #f0f0f1;
 }
+
+/* Signature et tampon */
+.cp-imgdata .cp-pad {
+	display: block;
+	width: 100%;
+	max-width: 450px;
+	aspect-ratio: 3 / 1;
+	background: #fff;
+	border: 1px dashed #c3b2a1;
+	border-radius: 8px;
+	cursor: crosshair;
+	touch-action: none;
+	background-image: linear-gradient( to top, transparent 24%, #e8dccd 24%, #e8dccd calc( 24% + 1px ), transparent calc( 24% + 1px ) );
+}
+.cp-imgdata .cp-imgdata-preview { display: block; max-width: 220px; max-height: 120px; margin-bottom: 6px; padding: 6px; background: #fff; border: 1px solid #e5dccf; border-radius: 8px; }
+.cp-imgdata .cp-imgdata-preview[hidden] { display: none; }
+.cp-imgdata-actions { margin: 6px 0 0; }

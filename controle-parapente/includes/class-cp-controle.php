@@ -396,6 +396,7 @@ class CP_Controle {
 			'lines'             => self::default_line_rows(),
 			'conformity_date'   => '',
 			'safety_notice'     => '',
+			'sign_report'       => '1',
 			'temperature'       => '',
 			'humidity'          => '',
 			'next_hours'        => '',
@@ -582,6 +583,8 @@ class CP_Controle {
 		}
 		$d['conformity_date'] = self::sanitize_date( isset( $raw['conformity_date'] ) ? $raw['conformity_date'] : '' );
 		$d['safety_notice']   = ! empty( $raw['safety_notice'] ) ? '1' : '';
+		// Signature et tampon : activés par défaut (case présente seulement dans la fiche atelier).
+		$d['sign_report']     = empty( $raw['sign_report_field'] ) || ! empty( $raw['sign_report'] ) ? '1' : '';
 		foreach ( array( 'temperature', 'humidity', 'next_hours' ) as $key ) {
 			$value     = isset( $raw[ $key ] ) ? str_replace( ',', '.', trim( (string) $raw[ $key ] ) ) : '';
 			$d[ $key ] = is_numeric( $value ) ? (string) ( 0 + $value ) : '';
