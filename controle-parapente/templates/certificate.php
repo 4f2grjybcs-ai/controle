@@ -422,32 +422,35 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'L' ); ?>
 			<?php elseif ( $d['lines'] ) : ?>
 				<?php
-				// Résultat global (le détail par suspente reste dans la fiche atelier).
-				$tested = 0;
-				$failed = 0;
-				foreach ( $d['lines'] as $row ) {
-					$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
-					if ( '' !== $level ) {
-						++$tested;
-						$failed += 'bad' === $level ? 1 : 0;
-					}
-				}
+				$levels     = CP_Controle::line_levels();
 				?>
-				<?php if ( $tested ) : ?>
-					<p class="cp-lines-result lvl-<?php echo esc_attr( $failed ? 'bad' : 'ok' ); ?>">
+				<table class="cp-table">
+					<thead><tr>
+						<th><?php esc_html_e( 'Suspente testée', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'À neuf (daN)', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'Rupture (daN)', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( 'Minimum (daN)', 'controle-parapente' ); ?></th>
+						<th class="num"><?php esc_html_e( '% du neuf', 'controle-parapente' ); ?></th>
+						<th><?php esc_html_e( 'Évaluation', 'controle-parapente' ); ?></th>
+					</tr></thead>
+					<tbody>
+					<?php foreach ( $d['lines'] as $row ) : ?>
 						<?php
-						echo esc_html(
-							$failed
-								? ( 1 === $tested
-									? __( 'La suspente testée est sous le minimum requis : Échec.', 'controle-parapente' )
-									/* translators: 1: suspentes en échec, 2: suspentes testées */
-									: sprintf( _n( '%1$s suspente sur %2$s testées sous le minimum requis : Échec.', '%1$s suspentes sur %2$s testées sous le minimum requis : Échec.', $failed, 'controle-parapente' ), $failed, $tested ) )
-								/* translators: %s: suspentes testées */
-								: sprintf( _n( '%s suspente testée : résistance conforme au minimum requis.', '%s suspentes testées : résistance conforme au minimum requis.', $tested, 'controle-parapente' ), $tested )
-						);
+						$level = CP_Controle::line_level( $row['measured'], $row['minimum'] );
+						$new   = isset( $row['new'] ) && is_numeric( $row['new'] ) && (float) $row['new'] > 0 ? (float) $row['new'] : null;
+						$lvl   = isset( $row['level'], $levels[ $row['level'] ] ) ? $levels[ $row['level'] ] : '';
 						?>
-					</p>
-				<?php endif; ?>
+						<tr>
+							<td><?php echo esc_html( $row['line'] ); ?><?php if ( $lvl && ! preg_match( '/niveau/iu', $row['line'] ) ) : ?><span class="cp-small"><?php echo esc_html( $lvl ); ?></span><?php endif; ?></td>
+							<td class="num"><?php echo esc_html( null === $new ? '—' : $fmt( $new ) ); ?></td>
+							<td class="num"><?php echo esc_html( $fmt( $row['measured'] ) ); ?></td>
+							<td class="num"><?php echo esc_html( $fmt( $row['minimum'] ) ); ?></td>
+							<td class="num"><?php echo esc_html( null !== $new && is_numeric( $row['measured'] ) ? round( (float) $row['measured'] / $new * 100 ) . ' %' : '—' ); ?></td>
+							<td class="lvl-<?php echo esc_attr( $level ); ?>"><?php echo esc_html( 'ok' === $level ? __( 'Conforme', 'controle-parapente' ) : ( 'bad' === $level ? __( 'Échec', 'controle-parapente' ) : '—' ) ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
 				<p class="cp-small">
 					<?php
 					echo esc_html(
@@ -473,7 +476,7 @@ $level_text = static function ( $level, $bad = null, $warn = null ) {
 				<?php $not_done( 'G' ); ?>
 			</section>
 		<?php else : ?>
-			<?php CP_Trim::render_certificate( $d['trim'], $d['trim_adjusted'], $settings['title_geometric'], $is_admin ); ?>
+			<?php CP_Trim::render_certificate( $d['trim'], $d['trim_adjusted'], $settings['title_geometric'], $is_admin, false ); ?>
 		<?php endif; ?>
 
 		<?php if ( $d['repairs'] ) : ?>

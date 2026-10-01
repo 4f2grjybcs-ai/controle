@@ -41,7 +41,7 @@ Le rapport suit le PMA Standard « Periodical Inspection of Paragliders » (V 20
 - **synthèse** : interprétation de chacune des trois inspections (visuelle, mécanique, géométrique) et **curseur d'état global** (Neuf / Très bon / Bon / Acceptable / Limite / Réformé), avec la liste des tests sur lesquels il repose (même si tous n'ont pas été réalisés) ; aucun pourcentage d'usure ni durée de vie restante ;
 - **porosité** saisie en secondes et convertie en **l/m²/min** sur le rapport (5400 ÷ secondes, sous 20 mbar) : 4 zones sur l'envergure, extrados entre 5 et 30 % de la corde ; < 360 Bon, 360–540 Acceptable, > 540 Échec. Le rapport donne le résultat de chaque mesure et la moyenne générale ;
 - **déchirure** (Bettsomètre, en **daN**) : < 0,6 Échec, 0,6–0,7 Acceptable, > 0,7 Bon ;
-- **résistance des suspentes** : pour chaque suspente testée (niveaux A1 bas → haut), **type** choisi dans un catalogue (résistance à neuf et matière) ; le **minimum est calculé automatiquement** selon la PMA : *valeur à neuf × source (constructeur 1,00 / fournisseur 1,05) × matière (aramide / Technora / Vectran 0,45 ; Dyneema 0,65)*, ou saisi à la main si le constructeur donne un minimum. Le rapport client donne seulement le résultat global (nombre de suspentes testées, conforme ou échec) ; le détail par suspente reste dans la fiche atelier ;
+- **résistance des suspentes** : pour chaque suspente testée (niveaux A1 bas → haut), **type** choisi dans un catalogue (résistance à neuf et matière) ; le **minimum est calculé automatiquement** selon la PMA : *valeur à neuf × source (constructeur 1,00 / fournisseur 1,05) × matière (aramide / Technora / Vectran 0,45 ; Dyneema 0,65)*, ou saisi à la main si le constructeur donne un minimum. Le rapport indique le **% de la résistance à neuf** ;
 - **contrôle visuel** avec les mêmes termes que l'état global : Neuf / Très bon / Bon / Acceptable / Limite / Réformé ;
 - **conditions** (température 5–35 °C, humidité 30–80 %), date de conformité constructeur, consignes de sécurité, heures de vol (prochain contrôle = heures actuelles + 150 h) ;
 - **contrôle partiel** : si les 5 tests ne sont pas tous réalisés, le rapport affiche un avertissement. Un test non réalisé peut être marqué **« Non nécessaire »** ou **« Non demandé »** : il est alors validé, l'avertissement disparaît et le rapport peut attester de la navigabilité (le test reste indiqué comme tel sur le rapport) ;
@@ -74,7 +74,7 @@ Dans l'espace atelier, le calage a son propre onglet **« Calage »** dans la fi
    - Flèches et Entrée pour se déplacer ; collez une colonne (ou un bloc) depuis Excel, Google Sheets ou le logiciel du laser.
    - Sous la feuille : l'écart moyen par groupe et l'**aperçu du dessin client**, mis à jour pendant la saisie.
 
-**Rapport client** : uniquement le **dessin de l'aile vue de dessus**, **avant intervention** (1ère mesure) et **après intervention** (mesure finale) ; chaque groupe y est placé sur ses points d'accroche avec son écart moyen, vert dans la tolérance, rouge au-delà. Les tableaux détaillés restent sur la fiche atelier imprimée.
+**Rapport client** : uniquement le **dessin de l'aile vue de dessus**, **avant intervention** (1ère mesure) et **après intervention** (mesure finale) ; chaque groupe y est placé sur ses points d'accroche avec son écart moyen, vert dans la tolérance, rouge au-delà. Le rapport (client comme atelier) n'affiche pas de tableau par suspente pour le calage : seulement les infos (tolérance, dates, offset) et les dessins ; le détail reste dans l'onglet Calage.
 
 ## Installation
 

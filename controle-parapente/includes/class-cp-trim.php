@@ -656,7 +656,12 @@ class CP_Trim {
 	 * @param string|null $title         Titre de la section.
 	 * @param bool        $detailed      Tableaux détaillés (fiche atelier) ; sinon seulement le dessin (rapport client).
 	 */
-	public static function render_certificate( array $trim, $trim_adjusted, $title = null, $detailed = true ) {
+	/**
+	 * @param bool $detailed Infos atelier (élévateur, offset) dans l'en-tête.
+	 * @param bool $tables   Tableaux détaillés par groupe et par suspente (fiche atelier seulement).
+	 */
+	public static function render_certificate( array $trim, $trim_adjusted, $title = null, $detailed = true, $tables = null ) {
+		$tables = null === $tables ? $detailed : $tables;
 		$trim     = self::normalize( $trim );
 		$analysis = self::analyze( $trim );
 		if ( ! $analysis['has_data'] ) {
@@ -732,7 +737,7 @@ class CP_Trim {
 				</p>
 			</div>
 
-			<?php if ( $detailed ) : ?>
+			<?php if ( $tables ) : ?>
 			<h3 class="cp-workshop-only"><?php esc_html_e( 'Détail atelier', 'controle-parapente' ); ?></h3>
 
 			<h3><?php esc_html_e( 'Décalage par groupe', 'controle-parapente' ); ?></h3>
