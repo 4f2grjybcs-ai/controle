@@ -878,28 +878,61 @@
 			return;
 		}
 		e.preventDefault();
-		var lines = text.replace( /\r/g, '' ).replace( /\n$/, '' ).split( '\n' );
+		var lines = text.replace( /\r/g, '' ).replace( /\n$/, '' ).split( '\n' ).map( function ( line ) {
+			return line.split( '\t' );
+		} );
 		var col = el.getAttribute( 'data-col' );
 		var trs = Array.prototype.slice.call( grid.querySelectorAll( 'tbody tr' ) );
 		var t0 = trs.indexOf( el.closest( 'tr' ) );
-		lines.forEach( function ( line, li ) {
-			var tr = trs[ t0 + li ];
-			var base = tr ? tr.querySelector( '.cp-sheet-input[data-col="' + col + '"]' ) : null;
-			if ( ! base ) {
-				return;
+		// Colonnes de la feuille dans l'ordre (une colonne par rangée et par bloc).
+		var cols = [];
+		grid.querySelectorAll( '.cp-sheet-input' ).forEach( function ( input ) {
+			var c = +input.getAttribute( 'data-col' );
+			if ( cols.indexOf( c ) === -1 ) {
+				cols.push( c );
 			}
-			// Colonne de départ, puis cellules suivantes de la ligne pour les données sur plusieurs colonnes.
-			var cells = Array.prototype.slice.call( tr.querySelectorAll( '.cp-sheet-input' ) );
-			var start = cells.indexOf( base );
-			line.split( '\t' ).forEach( function ( v, ci ) {
-				var target = cells[ start + ci ];
-				if ( target && ! target.readOnly ) {
-					var clean = v.trim().replace( ',', '.' ).replace( /[^0-9.\-]/g, '' );
-					target.value = clean;
-					setValue( target.getAttribute( 'data-kind' ), target.getAttribute( 'data-id' ), clean );
-				}
-			} );
 		} );
+		cols.sort( function ( x, y ) {
+			return x - y;
+		} );
+		var width = Math.max.apply( null, lines.map( function ( l ) {
+			return l.length;
+		} ) );
+		var put = function ( target, v ) {
+			if ( target && ! target.readOnly ) {
+				var clean = String( v || '' ).trim().replace( ',', '.' ).replace( /[^0-9.\-]/g, '' );
+				target.value = clean;
+				setValue( target.getAttribute( 'data-kind' ), target.getAttribute( 'data-id' ), clean );
+			}
+		};
+		for ( var ci = 0; ci < width; ci++ ) {
+			var c = cols[ cols.indexOf( +col ) + ci ];
+			if ( c === undefined ) {
+				break;
+			}
+			// Cases de la colonne à partir de la ligne de départ (null = case vide de la structure).
+			var cells = trs.slice( t0 ).map( function ( tr ) {
+				return tr.querySelector( '.cp-sheet-input[data-col="' + c + '"]' );
+			} );
+			var values = lines.map( function ( l ) {
+				return l[ ci ] === undefined ? '' : l[ ci ];
+			} );
+			// Si la feuille collée a déjà des cellules vides aux mêmes endroits, on colle ligne à ligne ;
+			// sinon les valeurs sautent les cases vides et remplissent les suspentes suivantes.
+			var aligned = values.every( function ( v, k ) {
+				return cells[ k ] || String( v ).trim() === '';
+			} );
+			if ( aligned ) {
+				values.forEach( function ( v, k ) {
+					put( cells[ k ], v );
+				} );
+			} else {
+				var targets = cells.filter( Boolean );
+				values.forEach( function ( v, k ) {
+					put( targets[ k ], v );
+				} );
+			}
+		}
 		updateComputed();
 	} ); } );
 
