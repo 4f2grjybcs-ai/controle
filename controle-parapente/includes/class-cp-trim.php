@@ -7,6 +7,7 @@
  * - sides          : 'both' (gauche + droite) ou 'one' (un seul côté)
  * - riser_length   : longueur d'élévateur (mm) ajoutée aux cotes usine
  * - offset         : correction de mesure (mm) ajoutée aux cotes usine
+ * - v              : version du format (2 : freins sous la clé 'K', rangées E et F disponibles)
  * - structure      : [ 'A' => [ [ 'count' => 4, 'color' => 'rouge', 'gap' => 1, 'empty' => [ 4 ] ], … ], … ]
  *                    empty = positions des cases vides dans le groupe (0 = première case) : début, fin ou milieu
  *                    gap = cases vides laissées après le groupe dans la feuille (alignement des groupes entre rangées)
@@ -32,7 +33,8 @@ class CP_Trim {
 	const MAX_LINES  = 40;
 
 	/**
-	 * Rangées du suspentage. Les freins sont traités à part.
+	 * Rangées du suspentage. Les freins sont traités à part, sous la clé interne 'K'
+	 * (affichés « Fr » / « Freins ») pour laisser la lettre F à une rangée de suspentes.
 	 */
 	public static function rows() {
 		return array(
@@ -40,8 +42,38 @@ class CP_Trim {
 			'B' => __( 'Rangée B', 'controle-parapente' ),
 			'C' => __( 'Rangée C', 'controle-parapente' ),
 			'D' => __( 'Rangée D', 'controle-parapente' ),
-			'F' => __( 'Freins', 'controle-parapente' ),
+			'E' => __( 'Rangée E', 'controle-parapente' ),
+			'F' => __( 'Rangée F', 'controle-parapente' ),
+			'K' => __( 'Freins', 'controle-parapente' ),
 		);
+	}
+
+	/**
+	 * Numéro de suspente affiché : les freins K1, K2… s'affichent Fr1, Fr2…
+	 */
+	public static function display_id( $id ) {
+		return 'K' === substr( (string) $id, 0, 1 ) ? 'Fr' . substr( (string) $id, 1 ) : (string) $id;
+	}
+
+	/**
+	 * Ancien format (avant la version 2) : les freins étaient enregistrés sous la lettre F.
+	 */
+	private static function migrate_brakes( array $trim ) {
+		if ( isset( $trim['structure']['F'] ) && ! isset( $trim['structure']['K'] ) ) {
+			$trim['structure']['K'] = $trim['structure']['F'];
+			unset( $trim['structure']['F'] );
+		}
+		foreach ( array( 'factory', 'initial', 'final' ) as $key ) {
+			if ( empty( $trim[ $key ] ) || ! is_array( $trim[ $key ] ) ) {
+				continue;
+			}
+			$moved = array();
+			foreach ( $trim[ $key ] as $id => $value ) {
+				$moved[ preg_match( '/^F(\d+)$/', (string) $id, $m ) ? 'K' . $m[1] : $id ] = $value;
+			}
+			$trim[ $key ] = $moved;
+		}
+		return $trim;
 	}
 
 	/**
@@ -94,6 +126,7 @@ class CP_Trim {
 
 	public static function defaults() {
 		return array(
+			'v'              => 2,
 			'sides'          => 'both',
 			'offset'         => '',
 			'structure'      => array(
@@ -101,7 +134,9 @@ class CP_Trim {
 				'B' => self::groups( array( 4, 4, 2 ) ),
 				'C' => self::groups( array( 4, 4, 2 ) ),
 				'D' => array(),
-				'F' => self::groups( array( 4, 4 ) ),
+				'E' => array(),
+				'F' => array(),
+				'K' => self::groups( array( 4, 4 ) ),
 			),
 			'factory'        => array(),
 			'initial'        => array(),
@@ -124,6 +159,10 @@ class CP_Trim {
 	public static function normalize( $trim ) {
 		if ( ! is_array( $trim ) || ! isset( $trim['structure'] ) ) {
 			return self::defaults();
+		}
+		if ( empty( $trim['v'] ) || (int) $trim['v'] < 2 ) {
+			$trim      = self::migrate_brakes( $trim );
+			$trim['v'] = 2;
 		}
 		$trim   = wp_parse_args( $trim, self::defaults() );
 		$colors = self::colors();
@@ -268,11 +307,12 @@ class CP_Trim {
 			if ( isset( $raw['structure'][ $row ] ) && is_array( $raw['structure'][ $row ] ) ) {
 				foreach ( array_slice( array_values( $raw['structure'][ $row ] ), 0, self::MAX_GROUPS ) as $i => $group ) {
 					$count = is_array( $group ) && isset( $group['count'] ) ? absint( $group['count'] ) : absint( $group );
-					if ( $count <= 0 ) {
+					$color = is_array( $group ) && isset( $group['color'] ) ? sanitize_key( $group['color'] ) : '';
+					$gap   = is_array( $group ) && isset( $group['gap'] ) ? min( self::MAX_LINES, absint( $group['gap'] ) ) : 0;
+					// Un groupe peut être entièrement vide (0 suspente, X cases vides) pour garder l'alignement.
+					if ( $count <= 0 && $gap <= 0 ) {
 						continue;
 					}
-					$color    = is_array( $group ) && isset( $group['color'] ) ? sanitize_key( $group['color'] ) : '';
-					$gap      = is_array( $group ) && isset( $group['gap'] ) ? min( self::MAX_LINES, absint( $group['gap'] ) ) : 0;
 					$groups[] = array(
 						'count' => min( self::MAX_LINES, $count ),
 						'color' => isset( $colors[ $color ] ) ? $color : self::default_color( count( $groups ) ),
@@ -318,7 +358,7 @@ class CP_Trim {
 			return null;
 		}
 		// Les freins ne passent pas par l'élévateur : pas de longueur d'élévateur ajoutée.
-		if ( 'F' === substr( (string) $id, 0, 1 ) ) {
+		if ( 'K' === substr( (string) $id, 0, 1 ) ) {
 			return (float) $trim['factory'][ $id ];
 		}
 		return (float) $trim['factory'][ $id ] + (float) $trim['riser_length'];
@@ -444,7 +484,7 @@ class CP_Trim {
 		}
 		// Évalué sur la valeur arrondie au mm, telle qu'elle est affichée.
 		$deviation = round( $deviation );
-		if ( 'F' === $row ) {
+		if ( 'K' === $row ) {
 			return $deviation >= (float) CP_Settings::get( 'brake_min' ) && $deviation <= (float) CP_Settings::get( 'brake_max' ) ? 'ok' : 'bad';
 		}
 		return abs( $deviation ) <= $tolerance ? 'ok' : 'bad';
@@ -502,7 +542,7 @@ class CP_Trim {
 	public static function group_label( $row, $color ) {
 		$colors = self::colors();
 		$name   = isset( $colors[ $color ] ) ? $colors[ $color ][0] : '';
-		return ( 'F' === $row ? __( 'Freins', 'controle-parapente' ) : $row ) . ' · ' . $name;
+		return ( 'K' === $row ? __( 'Freins', 'controle-parapente' ) : $row ) . ' · ' . $name;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -760,7 +800,7 @@ class CP_Trim {
 						continue;
 					}
 					?>
-					<tr class="<?php echo 'F' === $g['row'] ? 'cp-brakes' : ''; ?>">
+					<tr class="<?php echo 'K' === $g['row'] ? 'cp-brakes' : ''; ?>">
 						<td><?php echo self::swatch( $g['color'] ) . esc_html( self::group_label( $g['row'], $g['color'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?></td>
 						<?php if ( $both ) : ?><td><?php echo esc_html( $sides[ $g['side'] ] ); ?></td><?php endif; ?>
 						<td class="num"><?php echo esc_html( $g['count'] ); ?></td>
@@ -808,7 +848,7 @@ class CP_Trim {
 						<tr class="cp-group-head"><td colspan="<?php echo esc_attr( $cols ); ?>"><?php echo self::swatch( $line['color'] ) . esc_html( self::group_label( $line['row'], $line['color'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?></td></tr>
 					<?php endif; ?>
 					<tr>
-						<td><?php echo esc_html( $line['id'] ); ?></td>
+						<td><?php echo esc_html( self::display_id( $line['id'] ) ); ?></td>
 						<td class="num"><?php echo esc_html( self::length( $line['factory'] ) ); ?></td>
 						<?php foreach ( array_keys( $sides ) as $side ) : ?>
 							<?php foreach ( array_keys( $sets ) as $set ) : ?>
@@ -852,7 +892,21 @@ class CP_Trim {
 		$both   = 'one' !== $trim['sides'];
 
 		// Position des rangées sur la corde (fraction depuis le bord d'attaque).
-		$row_pos = array( 'A' => 0.12, 'B' => 0.34, 'C' => 0.55, 'D' => 0.74, 'F' => 0.97 );
+		$row_pos = array( 'A' => 0.12, 'B' => 0.34, 'C' => 0.55, 'D' => 0.74, 'K' => 0.97 );
+		if ( ! empty( $trim['structure']['E'] ) || ! empty( $trim['structure']['F'] ) ) {
+			// Rangées E / F présentes : rangées réparties régulièrement jusqu'à la dernière utilisée.
+			$used = array();
+			foreach ( array( 'A', 'B', 'C', 'D', 'E', 'F' ) as $r ) {
+				if ( ! empty( $trim['structure'][ $r ] ) ) {
+					$used = array_slice( array( 'A', 'B', 'C', 'D', 'E', 'F' ), 0, array_search( $r, array( 'A', 'B', 'C', 'D', 'E', 'F' ), true ) + 1 );
+				}
+			}
+			$row_pos = array();
+			foreach ( $used as $i => $r ) {
+				$row_pos[ $r ] = 0.1 + $i * ( 0.74 / max( 1, count( $used ) - 1 ) );
+			}
+			$row_pos['K'] = 0.97;
+		}
 
 		// Forme en plan d'après les plans de suspentage constructeur :
 		// bord d'attaque en ellipse continue, bord de fuite presque droit qui remonte
@@ -922,7 +976,7 @@ class CP_Trim {
 			}
 			$y    = round( $le_at( 0 ) + $pos * $chord_at( 0 ), 1 );
 			$svg .= '<rect x="' . ( $cx - 13 ) . '" y="' . ( $y - 10 ) . '" width="26" height="20" rx="10" fill="#fff8f2" stroke="#d9b49b"/>';
-			$svg .= '<text x="' . $cx . '" y="' . ( $y + 4.5 ) . '" text-anchor="middle" class="cp-wing-row">' . esc_html( 'F' === $row ? __( 'Fr', 'controle-parapente' ) : $row ) . '</text>';
+			$svg .= '<text x="' . $cx . '" y="' . ( $y + 4.5 ) . '" text-anchor="middle" class="cp-wing-row">' . esc_html( 'K' === $row ? __( 'Fr', 'controle-parapente' ) : $row ) . '</text>';
 		}
 		$svg .= '<text x="' . $cx . '" y="22" text-anchor="middle" class="cp-wing-caption">▲ ' . esc_html__( 'Bord d\'attaque — sens de vol', 'controle-parapente' ) . '</text>';
 		$svg .= '<text x="' . $cx . '" y="' . ( $h - 12 ) . '" text-anchor="middle" class="cp-wing-caption">' . esc_html__( 'Bord de fuite', 'controle-parapente' ) . '</text>';
@@ -939,7 +993,7 @@ class CP_Trim {
 		$dots      = '';
 		$tags      = '';
 		$max_slots = 1;
-		foreach ( array( 'A', 'B', 'C', 'D' ) as $r ) {
+		foreach ( array( 'A', 'B', 'C', 'D', 'E', 'F' ) as $r ) {
 			$max_slots = max( $max_slots, count( self::slots( $trim['structure'], $r ) ) );
 		}
 		foreach ( $trim['structure'] as $row => $row_groups ) {
@@ -956,7 +1010,7 @@ class CP_Trim {
 			// Points d'accroche répartis du centre vers le bout d'aile, case par case :
 			// les cases vides décalent les groupes pour qu'ils restent face à face d'une rangée à l'autre.
 			$slots   = self::slots( $trim['structure'], $row );
-			$scale   = 'F' === $row ? count( $slots ) : $max_slots;
+			$scale   = 'K' === $row ? count( $slots ) : $max_slots;
 			$u_start = 0.05;
 			$u_end   = 0.84;
 			$step    = $scale > 1 ? ( $u_end - $u_start ) / ( $scale - 1 ) : 0;
