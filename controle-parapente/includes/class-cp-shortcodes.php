@@ -81,17 +81,19 @@ class CP_Shortcodes {
 			self::$answers[ $i ]   = isset( $answers_raw[ $i ] ) ? sanitize_text_field( $answers_raw[ $i ] ) : '';
 		}
 
-		if ( '' === $data['pilot_name'] ) {
-			self::$errors[] = __( 'Merci d\'indiquer votre nom.', 'controle-parapente' );
+		// Champs obligatoires choisis dans Réglages → Formulaire public.
+		foreach ( CP_Settings::client_fields() as $key => $field ) {
+			if ( 'required' !== CP_Settings::field_mode( $key ) ) {
+				continue;
+			}
+			$empty = 'services' === $key ? empty( $data['services'] ) : '' === trim( (string) $data[ $key ] );
+			if ( $empty ) {
+				/* translators: %s: nom du champ */
+				self::$errors[] = sprintf( __( 'Merci de renseigner : %s.', 'controle-parapente' ), $field[0] );
+			}
 		}
-		if ( ! is_email( $data['email'] ) ) {
+		if ( '' !== $data['email'] && ! is_email( $data['email'] ) ) {
 			self::$errors[] = __( 'Merci d\'indiquer une adresse e-mail valide.', 'controle-parapente' );
-		}
-		if ( '' === $data['brand'] || '' === $data['model'] ) {
-			self::$errors[] = __( 'Merci d\'indiquer la marque et le modèle de l\'équipement.', 'controle-parapente' );
-		}
-		if ( CP_Settings::get( 'form_show_services' ) && empty( $data['services'] ) ) {
-			self::$errors[] = __( 'Merci de choisir au moins une prestation.', 'controle-parapente' );
 		}
 		if ( empty( $_POST['cp_consent'] ) ) {
 			self::$errors[] = __( 'Merci d\'accepter l\'utilisation de vos données pour le traitement de la demande.', 'controle-parapente' );
@@ -180,6 +182,45 @@ class CP_Shortcodes {
 		return isset( self::$values[ $key ] ) ? self::$values[ $key ] : '';
 	}
 
+	/**
+	 * Champ du formulaire client selon son réglage (obligatoire, facultatif ou non demandé).
+	 */
+	private static function field( $key, $type = 'text', $attrs = '' ) {
+		$mode = CP_Settings::field_mode( $key );
+		if ( 'hidden' === $mode ) {
+			return;
+		}
+		$fields = CP_Settings::client_fields();
+		$label  = $fields[ $key ][0];
+		$req    = 'required' === $mode;
+		if ( 'equipment_type' === $key ) {
+			self::select( $key, $label, CP_Controle::equipment_types(), 'parapente' );
+		} elseif ( 'certification' === $key ) {
+			self::select( $key, $label, CP_Controle::certifications() );
+		} elseif ( 'address' === $key || 'client_notes' === $key ) {
+			printf(
+				'<p class="cp-form__field cp-form__field--wide"><label for="cp-f-%1$s">%2$s%3$s</label><textarea id="cp-f-%1$s" name="cp[%1$s]" rows="%4$d"%5$s>%6$s</textarea></p>',
+				esc_attr( $key ),
+				esc_html( 'client_notes' === $key ? CP_Settings::get( 'form_notes_label' ) : $label ),
+				$req ? ' <span class="cp-required">*</span>' : '',
+				'client_notes' === $key ? 4 : 2,
+				$req ? ' required' : '',
+				esc_textarea( self::value( $key ) )
+			);
+		} else {
+			self::input( $key, $label, $type, $req, $attrs );
+		}
+	}
+
+	private static function shown( array $keys ) {
+		foreach ( $keys as $key ) {
+			if ( 'hidden' !== CP_Settings::field_mode( $key ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static function input( $key, $label, $type = 'text', $required = false, $attrs = '' ) {
 		printf(
 			'<p class="cp-form__field"><label for="cp-f-%1$s">%2$s%3$s</label><input type="%4$s" id="cp-f-%1$s" name="cp[%1$s]" value="%5$s"%6$s %7$s /></p>',
@@ -244,46 +285,44 @@ class CP_Shortcodes {
 			<input type="hidden" name="cp_mode" value="<?php echo esc_attr( $depot ? 'depot' : 'demande' ); ?>" />
 			<p class="cp-hp" aria-hidden="true"><label>Website <input type="text" name="cp_website" tabindex="-1" autocomplete="off" /></label></p>
 
+			<?php if ( self::shown( array( 'pilot_name', 'email', 'phone', 'address' ) ) ) : ?>
 			<fieldset>
 				<legend><?php echo esc_html( CP_Settings::get( 'form_title_contact' ) ); ?></legend>
 				<div class="cp-form__grid">
 					<?php
-					self::input( 'pilot_name', __( 'Nom et prénom', 'controle-parapente' ), 'text', true, 'autocomplete="name"' );
-					self::input( 'email', __( 'E-mail', 'controle-parapente' ), 'email', true, 'autocomplete="email"' );
-					self::input( 'phone', __( 'Téléphone', 'controle-parapente' ), 'tel', false, 'autocomplete="tel"' );
+					self::field( 'pilot_name', 'text', 'autocomplete="name"' );
+					self::field( 'email', 'email', 'autocomplete="email"' );
+					self::field( 'phone', 'tel', 'autocomplete="tel"' );
 					?>
 				</div>
-				<?php if ( CP_Settings::get( 'form_show_address' ) ) : ?>
-				<p class="cp-form__field">
-					<label for="cp-f-address"><?php esc_html_e( 'Adresse (pour un retour par la poste)', 'controle-parapente' ); ?></label>
-					<textarea id="cp-f-address" name="cp[address]" rows="2"><?php echo esc_textarea( self::value( 'address' ) ); ?></textarea>
-				</p>
-				<?php endif; ?>
+				<?php self::field( 'address' ); ?>
 			</fieldset>
+			<?php endif; ?>
 
+			<?php if ( self::shown( array( 'equipment_type', 'brand', 'model', 'size', 'serial', 'color', 'year', 'certification', 'flight_hours', 'last_check' ) ) ) : ?>
 			<fieldset>
 				<legend><?php echo esc_html( CP_Settings::get( 'form_title_equipment' ) ); ?></legend>
 				<div class="cp-form__grid">
 					<?php
-					self::select( 'equipment_type', __( 'Type', 'controle-parapente' ), CP_Controle::equipment_types(), 'parapente' );
-					self::input( 'brand', __( 'Marque', 'controle-parapente' ), 'text', true );
-					self::input( 'model', __( 'Modèle', 'controle-parapente' ), 'text', true );
-					self::input( 'size', __( 'Taille', 'controle-parapente' ) );
-					self::input( 'serial', __( 'N° de série', 'controle-parapente' ) );
-					self::input( 'color', __( 'Couleurs', 'controle-parapente' ) );
-					if ( CP_Settings::get( 'form_show_history' ) ) {
-						self::input( 'year', __( 'Année de fabrication', 'controle-parapente' ), 'number', false, 'min="1980" max="2100"' );
-						self::select( 'certification', __( 'Homologation', 'controle-parapente' ), CP_Controle::certifications() );
-						self::input( 'flight_hours', __( 'Heures de vol (approx.)', 'controle-parapente' ), 'number', false, 'min="0" inputmode="numeric"' );
-						self::input( 'last_check', __( 'Date du dernier contrôle', 'controle-parapente' ), 'date' );
-					}
+					self::field( 'equipment_type' );
+					self::field( 'brand' );
+					self::field( 'model' );
+					self::field( 'size' );
+					self::field( 'serial' );
+					self::field( 'color' );
+					self::field( 'year', 'number', 'min="1980" max="2100" inputmode="numeric"' );
+					self::field( 'certification' );
+					self::field( 'flight_hours', 'number', 'min="0" inputmode="numeric"' );
+					self::field( 'last_check', 'date' );
 					?>
 				</div>
 			</fieldset>
+			<?php endif; ?>
 
+			<?php if ( self::shown( array( 'services', 'client_notes' ) ) || ! $depot ) : ?>
 			<fieldset>
 				<legend><?php echo esc_html( CP_Settings::get( 'form_title_services' ) ); ?></legend>
-				<?php if ( CP_Settings::get( 'form_show_services' ) ) : ?>
+				<?php if ( 'hidden' !== CP_Settings::field_mode( 'services' ) ) : ?>
 					<?php foreach ( CP_Controle::services() as $key => $label ) : ?>
 						<label class="cp-form__check">
 							<input type="checkbox" name="cp[services][]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, $services, true ) ); ?> />
@@ -294,11 +333,9 @@ class CP_Shortcodes {
 				<?php if ( ! $depot ) : ?>
 					<?php self::select( 'drop_off', __( 'Comment nous confiez-vous le matériel ?', 'controle-parapente' ), CP_Controle::drop_off_modes(), 'atelier' ); ?>
 				<?php endif; ?>
-				<p class="cp-form__field">
-					<label for="cp-f-notes"><?php echo esc_html( CP_Settings::get( 'form_notes_label' ) ); ?></label>
-					<textarea id="cp-f-notes" name="cp[client_notes]" rows="4"><?php echo esc_textarea( self::value( 'client_notes' ) ); ?></textarea>
-				</p>
+				<?php self::field( 'client_notes' ); ?>
 			</fieldset>
+			<?php endif; ?>
 
 			<?php $questions = self::questions(); ?>
 			<?php if ( $questions ) : ?>

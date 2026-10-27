@@ -5,7 +5,7 @@
 	// Liste : toute la ligne est cliquable.
 	document.querySelectorAll( '.cp-list tr[data-href]' ).forEach( function ( tr ) {
 		tr.addEventListener( 'click', function ( e ) {
-			if ( e.target.closest( 'a' ) ) {
+			if ( e.target.closest( 'a, input, label, .cp-col-check' ) ) {
 				return;
 			}
 			window.location.href = tr.getAttribute( 'data-href' );
@@ -248,6 +248,38 @@
 			png.href = canvas.toDataURL( 'image/png' );
 		}
 	}
+
+	// Suppression : sélection multiple dans la liste, confirmation avant envoi.
+	var bulk = document.querySelector( '.cp-bulk' );
+	if ( bulk ) {
+		var bar = bulk.querySelector( '.cp-bulk-bar' );
+		var countEl = bulk.querySelector( '.cp-bulk-count' );
+		var boxes = bulk.querySelectorAll( '.cp-check' );
+		var refresh = function () {
+			var n = bulk.querySelectorAll( '.cp-check:checked' ).length;
+			bar.hidden = ! n;
+			countEl.textContent = n + ( n > 1 ? ' contrôles sélectionnés' : ' contrôle sélectionné' );
+			bulk.querySelectorAll( 'tbody tr' ).forEach( function ( tr ) {
+				var box = tr.querySelector( '.cp-check' );
+				tr.classList.toggle( 'is-selected', !! ( box && box.checked ) );
+			} );
+		};
+		bulk.addEventListener( 'change', function ( e ) {
+			if ( e.target.classList.contains( 'cp-check-all' ) ) {
+				boxes.forEach( function ( b ) {
+					b.checked = e.target.checked;
+				} );
+			}
+			refresh();
+		} );
+	}
+	document.querySelectorAll( '.cp-bulk, .cp-delete-fiche' ).forEach( function ( f ) {
+		f.addEventListener( 'submit', function ( e ) {
+			if ( ! window.confirm( f.getAttribute( 'data-confirm' ) ) ) {
+				e.preventDefault();
+			}
+		} );
+	} );
 
 	// Copier le lien client.
 	document.querySelectorAll( '.cp-copy' ).forEach( function ( btn ) {

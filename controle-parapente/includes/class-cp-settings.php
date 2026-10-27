@@ -52,7 +52,7 @@ class CP_Settings {
 	public static function schema() {
 		$placeholders = __( 'Variables : {client} {reference} {aile} {serie} {statut} {resultat} {prochain_controle} {lien} {atelier} {telephone}', 'controle-parapente' );
 
-		return array(
+		$schema = array(
 			/* ---------------- Atelier ---------------- */
 			'h_identity'          => array( 'atelier', 'heading', __( 'Identité de l\'atelier', 'controle-parapente' ) ),
 			'workshop_name'       => array( 'atelier', 'text', __( 'Nom de l\'atelier', 'controle-parapente' ), get_bloginfo( 'name' ) ),
@@ -167,11 +167,9 @@ class CP_Settings {
 			'form_success'        => array( 'formulaire', 'textarea', __( 'Message après envoi', 'controle-parapente' ), __( 'Merci ! Votre demande a bien été enregistrée sous la référence {reference}. Un e-mail de confirmation vient de vous être envoyé.', 'controle-parapente' ) ),
 			'h_form_sections'     => array( 'formulaire', 'heading', __( 'Sections du formulaire client', 'controle-parapente' ) ),
 			'form_title_contact'  => array( 'formulaire', 'text', __( 'Titre : coordonnées', 'controle-parapente' ), __( 'Vos coordonnées', 'controle-parapente' ) ),
-			'form_show_address'   => array( 'formulaire', 'checkbox', __( 'Demander l\'adresse postale', 'controle-parapente' ), '1' ),
 			'form_title_equipment' => array( 'formulaire', 'text', __( 'Titre : équipement', 'controle-parapente' ), __( 'Votre équipement', 'controle-parapente' ) ),
-			'form_show_history'   => array( 'formulaire', 'checkbox', __( 'Demander année, homologation, heures de vol et dernier contrôle', 'controle-parapente' ), '1' ),
 			'form_title_services' => array( 'formulaire', 'text', __( 'Titre : prestations', 'controle-parapente' ), __( 'Prestations souhaitées', 'controle-parapente' ) ),
-			'form_show_services'  => array( 'formulaire', 'checkbox', __( 'Proposer le choix des prestations', 'controle-parapente' ), '1' ),
+			'h_form_fields'       => array( 'formulaire', 'heading', __( 'Champs demandés au client', 'controle-parapente' ) ),
 			'form_notes_label'    => array( 'formulaire', 'text', __( 'Libellé du champ commentaires', 'controle-parapente' ), __( 'Commentaires (incidents, arbre, amerrissage, dommages connus…)', 'controle-parapente' ) ),
 			'form_title_questions' => array( 'formulaire', 'text', __( 'Titre : questions supplémentaires', 'controle-parapente' ), __( 'Quelques questions', 'controle-parapente' ) ),
 			'form_questions'      => array( 'formulaire', 'lines', __( 'Questions supplémentaires', 'controle-parapente' ), "Votre aile a-t-elle subi un incident (arbre, eau, choc) ? | oui-non | obligatoire\nAutorisez-vous le remplacement des pièces nécessaires (suspentes, maillons) ? | oui-non\nQuand souhaitez-vous récupérer votre aile ? | date\nComment préférez-vous être prévenu ? | choix : SMS / E-mail / Téléphone", __( 'Une par ligne : « Question | type | obligatoire ». Types : texte, oui-non, nombre, date, choix : A / B / C. Les réponses s\'affichent dans la fiche (onglet Client & aile).', 'controle-parapente' ) ),
@@ -181,6 +179,14 @@ class CP_Settings {
 			'depot_success'       => array( 'formulaire', 'textarea', __( 'Message après le dépôt', 'controle-parapente' ), __( 'Merci ! Votre aile est enregistrée sous la référence {reference}. Vous pouvez la remettre à l\'atelier ; un e-mail de confirmation vient de vous être envoyé.', 'controle-parapente' ) ),
 			'depot_poster'        => array( 'formulaire', 'text', __( 'Texte de l\'affiche QR code', 'controle-parapente' ), __( 'Scannez pour déposer votre voile', 'controle-parapente' ) ),
 		);
+
+		// Un réglage par champ du formulaire client, juste après le titre « Champs demandés au client ».
+		$fields = array();
+		foreach ( self::client_fields() as $key => $field ) {
+			$fields[ 'field_' . $key ] = array( 'formulaire', 'select', $field[0], $field[1], '', self::field_modes() );
+		}
+		$at = array_search( 'h_form_fields', array_keys( $schema ), true ) + 1;
+		return array_slice( $schema, 0, $at, true ) + $fields + array_slice( $schema, $at, null, true );
 	}
 
 	public static function default_norms_reference() {
@@ -239,6 +245,28 @@ class CP_Settings {
 				$stored['trim_tolerance'] = 10;
 				update_option( self::OPTION, $stored );
 				$settings['trim_tolerance'] = 10;
+			}
+		}
+		// Anciennes cases « afficher l'adresse / l'historique / les prestations » → réglage champ par champ.
+		if ( ! get_option( 'cp_field_modes' ) ) {
+			update_option( 'cp_field_modes', 1, false );
+			$stored = (array) get_option( self::OPTION, array() );
+			$groups = array(
+				'form_show_address'  => array( 'address' ),
+				'form_show_history'  => array( 'year', 'certification', 'flight_hours', 'last_check' ),
+				'form_show_services' => array( 'services' ),
+			);
+			foreach ( $groups as $old => $keys ) {
+				if ( isset( $stored[ $old ] ) && '' === $stored[ $old ] ) {
+					foreach ( $keys as $key ) {
+						$stored[ 'field_' . $key ]   = 'hidden';
+						$settings[ 'field_' . $key ] = 'hidden';
+					}
+				}
+				unset( $stored[ $old ] );
+			}
+			if ( $stored ) {
+				update_option( self::OPTION, $stored );
 			}
 		}
 		// Passage à la saisie de la porosité en secondes (une seule fois).
@@ -310,6 +338,46 @@ class CP_Settings {
 	/**
 	 * Réglage de type liste : une entrée par ligne.
 	 */
+	/**
+	 * Champs du formulaire client et leur réglage par défaut (obligatoire, facultatif ou masqué).
+	 */
+	public static function client_fields() {
+		return array(
+			'pilot_name'     => array( __( 'Nom et prénom', 'controle-parapente' ), 'required' ),
+			'email'          => array( __( 'E-mail', 'controle-parapente' ), 'required' ),
+			'phone'          => array( __( 'Téléphone', 'controle-parapente' ), 'optional' ),
+			'address'        => array( __( 'Adresse postale', 'controle-parapente' ), 'optional' ),
+			'equipment_type' => array( __( 'Type d\'équipement', 'controle-parapente' ), 'optional' ),
+			'brand'          => array( __( 'Marque', 'controle-parapente' ), 'required' ),
+			'model'          => array( __( 'Modèle', 'controle-parapente' ), 'required' ),
+			'size'           => array( __( 'Taille', 'controle-parapente' ), 'optional' ),
+			'serial'         => array( __( 'N° de série', 'controle-parapente' ), 'optional' ),
+			'color'          => array( __( 'Couleurs', 'controle-parapente' ), 'optional' ),
+			'year'           => array( __( 'Année de fabrication', 'controle-parapente' ), 'optional' ),
+			'certification'  => array( __( 'Homologation', 'controle-parapente' ), 'optional' ),
+			'flight_hours'   => array( __( 'Heures de vol', 'controle-parapente' ), 'optional' ),
+			'last_check'     => array( __( 'Date du dernier contrôle', 'controle-parapente' ), 'optional' ),
+			'services'       => array( __( 'Prestations souhaitées', 'controle-parapente' ), 'required' ),
+			'client_notes'   => array( __( 'Commentaires', 'controle-parapente' ), 'optional' ),
+		);
+	}
+
+	public static function field_modes() {
+		return array(
+			'required' => __( 'Obligatoire', 'controle-parapente' ),
+			'optional' => __( 'Facultatif', 'controle-parapente' ),
+			'hidden'   => __( 'Non demandé', 'controle-parapente' ),
+		);
+	}
+
+	/**
+	 * Réglage d'un champ du formulaire client : required, optional ou hidden.
+	 */
+	public static function field_mode( $key ) {
+		$mode = self::get( 'field_' . $key );
+		return isset( self::field_modes()[ $mode ] ) ? $mode : 'optional';
+	}
+
 	public static function lines( $key ) {
 		return array_values( array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', (string) self::get( $key ) ) ), 'strlen' ) );
 	}

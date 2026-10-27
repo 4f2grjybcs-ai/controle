@@ -173,6 +173,29 @@ class CP_Atelier {
 				wp_safe_redirect( self::url( array( 'fiche' => $post_id, 'msg' => 'saved' ) ) . '#' . $tab );
 				exit;
 
+			case 'delete':
+				// Suppression = mise à la corbeille de WordPress (récupérable depuis l'admin).
+				check_admin_referer( 'cp_delete_' . $post_id );
+				self::check_post( $post_id );
+				if ( ! current_user_can( 'delete_post', $post_id ) ) {
+					wp_die( esc_html__( 'Accès refusé.', 'controle-parapente' ), 403 );
+				}
+				wp_trash_post( $post_id );
+				wp_safe_redirect( self::url( array( 'msg' => 'deleted', 'n' => 1 ) ) );
+				exit;
+
+			case 'bulk_delete':
+				check_admin_referer( 'cp_bulk_delete' );
+				$ids = isset( $_POST['cp_ids'] ) && is_array( $_POST['cp_ids'] ) ? array_map( 'absint', $_POST['cp_ids'] ) : array();
+				$n   = 0;
+				foreach ( $ids as $id ) {
+					if ( $id && CP_Post_Type::POST_TYPE === get_post_type( $id ) && current_user_can( 'delete_post', $id ) && wp_trash_post( $id ) ) {
+						++$n;
+					}
+				}
+				wp_safe_redirect( self::url( array( 'msg' => 'deleted', 'n' => $n ) ) );
+				exit;
+
 			case 'send_report':
 				check_admin_referer( 'cp_send_report_' . $post_id );
 				self::check_post( $post_id );
@@ -440,6 +463,19 @@ class CP_Atelier {
 			<?php self::new_button( 'cp-btn cp-btn--primary cp-btn--big' ); ?>
 		</section>
 
+		<?php
+		// phpcs:ignore WordPress.Security.NonceVerification
+		if ( isset( $_GET['msg'] ) && 'deleted' === $_GET['msg'] ) :
+			$n = isset( $_GET['n'] ) ? absint( $_GET['n'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+			?>
+			<div class="cp-toast cp-toast--ok" role="status">
+				<?php
+				/* translators: %d: nombre de contrôles */
+				echo esc_html( sprintf( _n( '%d contrôle mis à la corbeille.', '%d contrôles mis à la corbeille.', $n, 'controle-parapente' ), $n ) . ' ' . __( 'Récupérable pendant 30 jours dans l\'admin WordPress (Contrôles → Corbeille).', 'controle-parapente' ) );
+				?>
+			</div>
+		<?php endif; ?>
+
 		<section class="cp-card">
 			<div class="cp-list-tools">
 				<nav class="cp-chips">
@@ -467,9 +503,17 @@ class CP_Atelier {
 			<?php if ( ! $query->have_posts() ) : ?>
 				<p class="cp-empty"><?php esc_html_e( 'Aucun contrôle ici pour le moment.', 'controle-parapente' ); ?></p>
 			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( self::url() ); ?>" class="cp-bulk" data-confirm="<?php esc_attr_e( 'Mettre les contrôles sélectionnés à la corbeille ?', 'controle-parapente' ); ?>">
+				<?php wp_nonce_field( 'cp_bulk_delete' ); ?>
+				<input type="hidden" name="cp_atelier_action" value="bulk_delete" />
+				<div class="cp-bulk-bar" hidden>
+					<span class="cp-bulk-count"></span>
+					<button type="submit" class="cp-btn cp-btn--danger"><?php esc_html_e( 'Supprimer la sélection', 'controle-parapente' ); ?></button>
+				</div>
 				<table class="cp-list">
 					<thead>
 						<tr>
+							<th class="cp-col-check"><input type="checkbox" class="cp-check-all" aria-label="<?php esc_attr_e( 'Tout sélectionner', 'controle-parapente' ); ?>" /></th>
 							<th><?php esc_html_e( 'Référence', 'controle-parapente' ); ?></th>
 							<th><?php esc_html_e( 'Reçu le', 'controle-parapente' ); ?></th>
 							<th><?php esc_html_e( 'Pilote', 'controle-parapente' ); ?></th>
@@ -485,6 +529,7 @@ class CP_Atelier {
 						$link = self::url( array( 'fiche' => $p->ID ) );
 						?>
 						<tr data-href="<?php echo esc_url( $link ); ?>">
+							<td class="cp-col-check"><input type="checkbox" name="cp_ids[]" value="<?php echo esc_attr( $p->ID ); ?>" class="cp-check" aria-label="<?php echo esc_attr( sprintf( __( 'Sélectionner %s', 'controle-parapente' ), $d['reference'] ) ); ?>" /></td>
 							<td>
 								<a href="<?php echo esc_url( $link ); ?>"><strong><?php echo esc_html( $d['reference'] ); ?></strong></a>
 								<?php if ( get_post_meta( $p->ID, self::META_NEW, true ) ) : ?><span class="cp-new"><?php esc_html_e( 'Nouveau', 'controle-parapente' ); ?></span><?php endif; ?>
@@ -502,6 +547,7 @@ class CP_Atelier {
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+				</form>
 				<?php if ( $query->max_num_pages > 1 ) : ?>
 					<nav class="cp-pages">
 						<?php for ( $i = 1; $i <= $query->max_num_pages; $i++ ) : ?>
@@ -632,6 +678,13 @@ class CP_Atelier {
 				<span class="cp-autosave" role="status" aria-live="polite" data-state="idle"><?php esc_html_e( 'Enregistrement automatique activé', 'controle-parapente' ); ?></span>
 				<button type="submit" class="cp-btn cp-btn--primary cp-save-btn" data-label="<?php esc_attr_e( 'Enregistrer la fiche', 'controle-parapente' ); ?>" data-label-notify="<?php esc_attr_e( 'Enregistrer et prévenir le client', 'controle-parapente' ); ?>"><?php esc_html_e( 'Enregistrer la fiche', 'controle-parapente' ); ?></button>
 			</div>
+		</form>
+
+		<form method="post" class="cp-delete-fiche" action="<?php echo esc_url( self::url( array( 'fiche' => $post_id ) ) ); ?>" data-confirm="<?php echo esc_attr( sprintf( __( 'Mettre le contrôle %s à la corbeille ?', 'controle-parapente' ), $d['reference'] ) ); ?>">
+			<?php wp_nonce_field( 'cp_delete_' . $post_id ); ?>
+			<input type="hidden" name="cp_atelier_action" value="delete" />
+			<input type="hidden" name="cp_post_id" value="<?php echo esc_attr( $post_id ); ?>" />
+			<button type="submit" class="cp-link-danger"><?php esc_html_e( 'Supprimer ce contrôle', 'controle-parapente' ); ?></button>
 		</form>
 
 		<form method="post" id="cp-send-report" action="<?php echo esc_url( self::url( array( 'fiche' => $post_id ) ) ); ?>">
