@@ -628,11 +628,11 @@ class CP_Atelier {
 						self::card( __( 'Client', 'controle-parapente' ), array( 'CP_Admin', 'box_pilot' ), $post );
 						self::card( __( 'Aile / équipement', 'controle-parapente' ), array( 'CP_Admin', 'box_equipment' ), $post );
 						self::card( __( 'Prestations', 'controle-parapente' ), array( 'CP_Admin', 'box_request' ), $post );
+						self::card( __( 'Type d\'inspection & normes', 'controle-parapente' ), array( 'CP_Admin', 'box_inspection' ), $post );
 						?>
 					</div>
 					<div class="cp-panel" data-panel="mesures">
 						<?php
-						self::card( __( 'Type d\'inspection & normes', 'controle-parapente' ), array( 'CP_Admin', 'box_inspection' ), $post );
 						self::card( __( 'Porosité du tissu', 'controle-parapente' ), array( 'CP_Admin', 'box_porosity' ), $post );
 						self::card( __( 'Déchirure & résistance des suspentes', 'controle-parapente' ), array( 'CP_Admin', 'box_strength' ), $post );
 						self::card( CP_Settings::get( 'title_visual' ), array( 'CP_Admin', 'box_visual' ), $post );
