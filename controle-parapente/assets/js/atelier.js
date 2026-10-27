@@ -221,6 +221,34 @@
 		} );
 	}
 
+	// QR code de dépôt (affiche) : dessiné en SVG, téléchargeable en PNG.
+	var qrBox = document.querySelector( '.cp-qr-code' );
+	if ( qrBox && typeof window.qrcode === 'function' && qrBox.getAttribute( 'data-url' ) ) {
+		var qr = window.qrcode( 0, 'M' );
+		qr.addData( qrBox.getAttribute( 'data-url' ) );
+		qr.make();
+		qrBox.innerHTML = qr.createSvgTag( { cellSize: 8, margin: 2, scalable: true } );
+		var png = document.querySelector( '.cp-qr-png' );
+		if ( png ) {
+			var n = qr.getModuleCount();
+			var cell = 24;
+			var canvas = document.createElement( 'canvas' );
+			canvas.width = canvas.height = ( n + 8 ) * cell;
+			var ctx = canvas.getContext( '2d' );
+			ctx.fillStyle = '#fff';
+			ctx.fillRect( 0, 0, canvas.width, canvas.height );
+			ctx.fillStyle = '#000';
+			for ( var y = 0; y < n; y++ ) {
+				for ( var x = 0; x < n; x++ ) {
+					if ( qr.isDark( y, x ) ) {
+						ctx.fillRect( ( x + 4 ) * cell, ( y + 4 ) * cell, cell, cell );
+					}
+				}
+			}
+			png.href = canvas.toDataURL( 'image/png' );
+		}
+	}
+
 	// Copier le lien client.
 	document.querySelectorAll( '.cp-copy' ).forEach( function ( btn ) {
 		btn.addEventListener( 'click', function () {

@@ -13,6 +13,7 @@ class CP_Shortcodes {
 
 	const NONCE      = 'cp_public_request';
 	const RATE_LIMIT = 5; // Demandes par heure et par adresse IP.
+	const RATE_LIMIT_DEPOT = 40; // Dépôts sur place : tous les clients partagent souvent le Wi-Fi de l'atelier.
 
 	/** @var array Erreurs du formulaire de demande. */
 	private static $errors = array();
@@ -20,8 +21,12 @@ class CP_Shortcodes {
 	/** @var array Valeurs saisies (réaffichées en cas d'erreur). */
 	private static $values = array();
 
+	/** Réponses saisies aux questions supplémentaires (réaffichées en cas d'erreur). */
+	private static $answers = array();
+
 	public static function init() {
 		add_shortcode( 'cp_demande_controle', array( __CLASS__, 'request_form' ) );
+		add_shortcode( 'cp_depot', array( __CLASS__, 'depot_form' ) );
 		add_shortcode( 'cp_suivi_controle', array( __CLASS__, 'tracking' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'handle_request' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
@@ -51,9 +56,30 @@ class CP_Shortcodes {
 			return;
 		}
 
+		$depot        = isset( $_POST['cp_mode'] ) && 'depot' === $_POST['cp_mode'];
 		$raw          = isset( $_POST['cp'] ) && is_array( $_POST['cp'] ) ? wp_unslash( $_POST['cp'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- nettoyé ci-dessous.
 		$data         = CP_Controle::sanitize( $raw, false );
 		self::$values = $data;
+
+		// Questions supplémentaires réglables.
+		$answers_raw = isset( $_POST['cp_q'] ) && is_array( $_POST['cp_q'] ) ? wp_unslash( $_POST['cp_q'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- nettoyé ci-dessous.
+		$data['form_answers'] = array();
+		foreach ( self::questions() as $i => $q ) {
+			$answer = isset( $answers_raw[ $i ] ) ? sanitize_text_field( $answers_raw[ $i ] ) : '';
+			if ( $q['options'] && '' !== $answer && ! in_array( $answer, $q['options'], true ) ) {
+				$answer = '';
+			}
+			if ( 'date' === $q['type'] ) {
+				$answer = CP_Controle::sanitize_date( $answer );
+				$answer = $answer ? CP_Controle::format_date( $answer ) : '';
+			}
+			if ( $q['required'] && '' === $answer ) {
+				/* translators: %s: question */
+				self::$errors[] = sprintf( __( 'Merci de répondre à la question : %s', 'controle-parapente' ), $q['label'] );
+			}
+			$data['form_answers'][] = array( 'q' => $q['label'], 'a' => $answer );
+			self::$answers[ $i ]   = isset( $answers_raw[ $i ] ) ? sanitize_text_field( $answers_raw[ $i ] ) : '';
+		}
 
 		if ( '' === $data['pilot_name'] ) {
 			self::$errors[] = __( 'Merci d\'indiquer votre nom.', 'controle-parapente' );
@@ -64,16 +90,16 @@ class CP_Shortcodes {
 		if ( '' === $data['brand'] || '' === $data['model'] ) {
 			self::$errors[] = __( 'Merci d\'indiquer la marque et le modèle de l\'équipement.', 'controle-parapente' );
 		}
-		if ( empty( $data['services'] ) ) {
+		if ( CP_Settings::get( 'form_show_services' ) && empty( $data['services'] ) ) {
 			self::$errors[] = __( 'Merci de choisir au moins une prestation.', 'controle-parapente' );
 		}
 		if ( empty( $_POST['cp_consent'] ) ) {
 			self::$errors[] = __( 'Merci d\'accepter l\'utilisation de vos données pour le traitement de la demande.', 'controle-parapente' );
 		}
 
-		$rate_key = 'cp_rate_' . md5( self::client_ip() );
+		$rate_key = 'cp_rate_' . ( $depot ? 'depot_' : '' ) . md5( self::client_ip() );
 		$count    = (int) get_transient( $rate_key );
-		if ( $count >= self::RATE_LIMIT ) {
+		if ( $count >= ( $depot ? self::RATE_LIMIT_DEPOT : self::RATE_LIMIT ) ) {
 			self::$errors[] = __( 'Trop de demandes envoyées. Merci de réessayer plus tard ou de nous contacter directement.', 'controle-parapente' );
 		}
 
@@ -94,9 +120,17 @@ class CP_Shortcodes {
 			return;
 		}
 
-		$data['status'] = 'demande';
+		// Dépôt sur place (QR code) : l'aile est déjà à l'atelier.
+		$data['status'] = $depot ? 'recue' : 'demande';
+		$data['source'] = $depot ? 'qr' : 'web';
+		if ( $depot ) {
+			$data['drop_off'] = 'atelier';
+		}
 		CP_Controle::save( $post_id, $data );
 		CP_Admin::sync_title( $post_id );
+		if ( $depot ) {
+			update_post_meta( $post_id, CP_Atelier::META_NEW, '1' );
+		}
 		set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
 
 		CP_Emails::new_request( $post_id );
@@ -105,6 +139,37 @@ class CP_Shortcodes {
 		$back      = is_singular() ? get_permalink( get_queried_object_id() ) : wp_get_referer();
 		wp_safe_redirect( add_query_arg( 'cp_envoye', rawurlencode( $reference ), $back ? $back : home_url( '/' ) ) );
 		exit;
+	}
+
+	/**
+	 * Questions supplémentaires (réglages) : [ [ label, type, options, required ] ].
+	 */
+	public static function questions() {
+		$out = array();
+		foreach ( CP_Settings::lines( 'form_questions' ) as $line ) {
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			if ( '' === $parts[0] ) {
+				continue;
+			}
+			$type    = isset( $parts[1] ) ? $parts[1] : 'texte';
+			$options = array();
+			if ( preg_match( '/^choix\s*:?\s*(.*)$/iu', $type, $m ) ) {
+				$options = array_values( array_filter( array_map( 'trim', preg_split( '#/|,#', $m[1] ) ), 'strlen' ) );
+				$type    = 'choix';
+			} elseif ( preg_match( '/^oui/i', $type ) ) {
+				$options = array( __( 'Oui', 'controle-parapente' ), __( 'Non', 'controle-parapente' ) );
+				$type    = 'oui-non';
+			} elseif ( ! in_array( $type, array( 'nombre', 'date' ), true ) ) {
+				$type = 'texte';
+			}
+			$out[] = array(
+				'label'    => $parts[0],
+				'type'     => $type,
+				'options'  => $options,
+				'required' => isset( $parts[2] ) && 0 === stripos( $parts[2], 'oblig' ),
+			);
+		}
+		return $out;
 	}
 
 	private static function client_ip() {
@@ -137,7 +202,15 @@ class CP_Shortcodes {
 		echo '</select></p>';
 	}
 
-	public static function request_form() {
+	/**
+	 * Formulaire de dépôt sur place (page ouverte par le QR code de l'atelier).
+	 */
+	public static function depot_form() {
+		return self::request_form( array( 'mode' => 'depot' ) );
+	}
+
+	public static function request_form( $atts = array() ) {
+		$depot = is_array( $atts ) && isset( $atts['mode'] ) && 'depot' === $atts['mode'];
 		wp_enqueue_style( 'cp-public' );
 		ob_start();
 
@@ -145,7 +218,7 @@ class CP_Shortcodes {
 		if ( ! empty( $_GET['cp_envoye'] ) ) {
 			$reference = sanitize_text_field( wp_unslash( $_GET['cp_envoye'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 			echo '<div class="cp-notice cp-notice--success"><p>';
-			echo wp_kses( str_replace( '{reference}', '<strong>' . esc_html( $reference ) . '</strong>', esc_html( CP_Settings::get( 'form_success' ) ) ), array( 'strong' => array() ) );
+			echo wp_kses( str_replace( '{reference}', '<strong>' . esc_html( $reference ) . '</strong>', esc_html( CP_Settings::get( $depot ? 'depot_success' : 'form_success' ) ) ), array( 'strong' => array() ) );
 			echo '</p></div>';
 			return ob_get_clean();
 		}
@@ -158,7 +231,7 @@ class CP_Shortcodes {
 			echo '</ul></div>';
 		}
 
-		$intro = CP_Settings::get( 'form_intro' );
+		$intro = CP_Settings::get( $depot ? 'depot_intro' : 'form_intro' );
 		if ( $intro ) {
 			echo '<div class="cp-intro">' . wp_kses_post( wpautop( $intro ) ) . '</div>';
 		}
@@ -168,10 +241,11 @@ class CP_Shortcodes {
 		<form class="cp-form" method="post" action="">
 			<?php wp_nonce_field( self::NONCE, 'cp_nonce' ); ?>
 			<input type="hidden" name="cp_action" value="demande" />
+			<input type="hidden" name="cp_mode" value="<?php echo esc_attr( $depot ? 'depot' : 'demande' ); ?>" />
 			<p class="cp-hp" aria-hidden="true"><label>Website <input type="text" name="cp_website" tabindex="-1" autocomplete="off" /></label></p>
 
 			<fieldset>
-				<legend><?php esc_html_e( 'Vos coordonnées', 'controle-parapente' ); ?></legend>
+				<legend><?php echo esc_html( CP_Settings::get( 'form_title_contact' ) ); ?></legend>
 				<div class="cp-form__grid">
 					<?php
 					self::input( 'pilot_name', __( 'Nom et prénom', 'controle-parapente' ), 'text', true, 'autocomplete="name"' );
@@ -179,14 +253,16 @@ class CP_Shortcodes {
 					self::input( 'phone', __( 'Téléphone', 'controle-parapente' ), 'tel', false, 'autocomplete="tel"' );
 					?>
 				</div>
+				<?php if ( CP_Settings::get( 'form_show_address' ) ) : ?>
 				<p class="cp-form__field">
 					<label for="cp-f-address"><?php esc_html_e( 'Adresse (pour un retour par la poste)', 'controle-parapente' ); ?></label>
 					<textarea id="cp-f-address" name="cp[address]" rows="2"><?php echo esc_textarea( self::value( 'address' ) ); ?></textarea>
 				</p>
+				<?php endif; ?>
 			</fieldset>
 
 			<fieldset>
-				<legend><?php esc_html_e( 'Votre équipement', 'controle-parapente' ); ?></legend>
+				<legend><?php echo esc_html( CP_Settings::get( 'form_title_equipment' ) ); ?></legend>
 				<div class="cp-form__grid">
 					<?php
 					self::select( 'equipment_type', __( 'Type', 'controle-parapente' ), CP_Controle::equipment_types(), 'parapente' );
@@ -194,28 +270,61 @@ class CP_Shortcodes {
 					self::input( 'model', __( 'Modèle', 'controle-parapente' ), 'text', true );
 					self::input( 'size', __( 'Taille', 'controle-parapente' ) );
 					self::input( 'serial', __( 'N° de série', 'controle-parapente' ) );
-					self::input( 'year', __( 'Année de fabrication', 'controle-parapente' ), 'number', false, 'min="1980" max="2100"' );
-					self::select( 'certification', __( 'Homologation', 'controle-parapente' ), CP_Controle::certifications() );
-					self::input( 'flight_hours', __( 'Heures de vol (approx.)', 'controle-parapente' ), 'number', false, 'min="0"' );
-					self::input( 'last_check', __( 'Date du dernier contrôle', 'controle-parapente' ), 'date' );
+					self::input( 'color', __( 'Couleurs', 'controle-parapente' ) );
+					if ( CP_Settings::get( 'form_show_history' ) ) {
+						self::input( 'year', __( 'Année de fabrication', 'controle-parapente' ), 'number', false, 'min="1980" max="2100"' );
+						self::select( 'certification', __( 'Homologation', 'controle-parapente' ), CP_Controle::certifications() );
+						self::input( 'flight_hours', __( 'Heures de vol (approx.)', 'controle-parapente' ), 'number', false, 'min="0" inputmode="numeric"' );
+						self::input( 'last_check', __( 'Date du dernier contrôle', 'controle-parapente' ), 'date' );
+					}
 					?>
 				</div>
 			</fieldset>
 
 			<fieldset>
-				<legend><?php esc_html_e( 'Prestations souhaitées', 'controle-parapente' ); ?></legend>
-				<?php foreach ( CP_Controle::services() as $key => $label ) : ?>
-					<label class="cp-form__check">
-						<input type="checkbox" name="cp[services][]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, $services, true ) ); ?> />
-						<?php echo esc_html( $label ); ?>
-					</label>
-				<?php endforeach; ?>
-				<?php self::select( 'drop_off', __( 'Comment nous confiez-vous le matériel ?', 'controle-parapente' ), CP_Controle::drop_off_modes(), 'atelier' ); ?>
+				<legend><?php echo esc_html( CP_Settings::get( 'form_title_services' ) ); ?></legend>
+				<?php if ( CP_Settings::get( 'form_show_services' ) ) : ?>
+					<?php foreach ( CP_Controle::services() as $key => $label ) : ?>
+						<label class="cp-form__check">
+							<input type="checkbox" name="cp[services][]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, $services, true ) ); ?> />
+							<?php echo esc_html( $label ); ?>
+						</label>
+					<?php endforeach; ?>
+				<?php endif; ?>
+				<?php if ( ! $depot ) : ?>
+					<?php self::select( 'drop_off', __( 'Comment nous confiez-vous le matériel ?', 'controle-parapente' ), CP_Controle::drop_off_modes(), 'atelier' ); ?>
+				<?php endif; ?>
 				<p class="cp-form__field">
-					<label for="cp-f-notes"><?php esc_html_e( 'Remarques (incidents, arbre, amerrissage, dommages connus…)', 'controle-parapente' ); ?></label>
+					<label for="cp-f-notes"><?php echo esc_html( CP_Settings::get( 'form_notes_label' ) ); ?></label>
 					<textarea id="cp-f-notes" name="cp[client_notes]" rows="4"><?php echo esc_textarea( self::value( 'client_notes' ) ); ?></textarea>
 				</p>
 			</fieldset>
+
+			<?php $questions = self::questions(); ?>
+			<?php if ( $questions ) : ?>
+				<fieldset>
+					<legend><?php echo esc_html( CP_Settings::get( 'form_title_questions' ) ); ?></legend>
+					<?php foreach ( $questions as $i => $q ) : ?>
+						<?php
+						$current = isset( self::$answers[ $i ] ) ? self::$answers[ $i ] : '';
+						$label   = esc_html( $q['label'] ) . ( $q['required'] ? ' <span class="cp-required">*</span>' : '' );
+						?>
+						<div class="cp-form__field cp-question">
+							<?php if ( $q['options'] ) : ?>
+								<span class="cp-question__label"><?php echo $label; // phpcs:ignore WordPress.Security.EscapeOutput ?></span>
+								<span class="cp-choices">
+									<?php foreach ( $q['options'] as $opt ) : ?>
+										<label class="cp-choice"><input type="radio" name="cp_q[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $opt ); ?>" <?php checked( $current, $opt ); ?> <?php echo $q['required'] ? 'required' : ''; ?> /> <span><?php echo esc_html( $opt ); ?></span></label>
+									<?php endforeach; ?>
+								</span>
+							<?php else : ?>
+								<label for="cp-q-<?php echo (int) $i; ?>"><?php echo $label; // phpcs:ignore WordPress.Security.EscapeOutput ?></label>
+								<input id="cp-q-<?php echo (int) $i; ?>" name="cp_q[<?php echo (int) $i; ?>]" value="<?php echo esc_attr( $current ); ?>" type="<?php echo esc_attr( 'nombre' === $q['type'] ? 'number' : ( 'date' === $q['type'] ? 'date' : 'text' ) ); ?>" <?php echo $q['required'] ? 'required' : ''; ?> />
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</fieldset>
+			<?php endif; ?>
 
 			<p class="cp-form__check">
 				<label>
@@ -224,7 +333,7 @@ class CP_Shortcodes {
 				</label>
 			</p>
 
-			<p><button type="submit" class="cp-button"><?php esc_html_e( 'Envoyer la demande', 'controle-parapente' ); ?></button></p>
+			<p><button type="submit" class="cp-button"><?php echo esc_html( $depot ? __( 'Enregistrer ma voile', 'controle-parapente' ) : __( 'Envoyer la demande', 'controle-parapente' ) ); ?></button></p>
 		</form>
 		<?php
 		return ob_get_clean();

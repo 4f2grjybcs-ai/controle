@@ -88,11 +88,17 @@ class CP_Emails {
 		$modes    = CP_Controle::drop_off_modes();
 
 		// Atelier.
-		$body  = __( 'Nouvelle demande de contrôle reçue depuis le site.', 'controle-parapente' ) . "\n\n";
+		$body  = ( 'qr' === $d['source'] ? __( 'Nouvelle aile déposée à l\'atelier (formulaire QR code).', 'controle-parapente' ) : __( 'Nouvelle demande de contrôle reçue depuis le site.', 'controle-parapente' ) ) . "\n\n";
 		$body .= self::summary( $d ) . "\n";
 		$body .= sprintf( __( 'E-mail : %s', 'controle-parapente' ), $d['email'] ) . "\n";
 		$body .= sprintf( __( 'Téléphone : %s', 'controle-parapente' ), $d['phone'] ) . "\n";
 		$body .= sprintf( __( 'Prestations : %s', 'controle-parapente' ), implode( ', ', $services ) ) . "\n";
+		if ( 'qr' === $d['source'] ) {
+			$body .= __( 'Aile déposée sur place (QR code) : fiche créée avec le statut « Aile réceptionnée ».', 'controle-parapente' ) . "\n";
+		}
+		foreach ( (array) $d['form_answers'] as $qa ) {
+			$body .= $qa['q'] . ' : ' . ( '' !== $qa['a'] ? $qa['a'] : '—' ) . "\n";
+		}
 		$body .= sprintf( __( 'Dépôt : %s', 'controle-parapente' ), $modes[ $d['drop_off'] ] ?? '' ) . "\n";
 		if ( $d['client_notes'] ) {
 			$body .= "\n" . __( 'Remarques :', 'controle-parapente' ) . "\n" . $d['client_notes'] . "\n";

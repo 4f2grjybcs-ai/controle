@@ -470,3 +470,29 @@ body[data-tab="calage"] .cp-fiche-side { position: static; order: 2; max-width: 
 .cp-atelier table.widefat td.lvl-ok { color: var( --cp-ok ); font-weight: 700; }
 .cp-atelier table.widefat td.lvl-warn { color: var( --cp-warn ); font-weight: 700; }
 .cp-atelier table.widefat td.lvl-bad { color: var( --cp-bad ); font-weight: 700; background: var( --cp-bad-soft ); }
+
+/* Liste : fiche créée par le client (QR code) */
+.cp-new { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var( --cp-accent, #c0643f ); color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+.cp-src { display: inline-block; margin-left: 4px; padding: 0 6px; border: 1px solid var( --cp-line, #ecdfd0 ); border-radius: 6px; font-size: 10px; font-weight: 700; color: var( --cp-muted, #8b776a ); vertical-align: 1px; }
+
+/* QR code de dépôt */
+.cp-qr-page { max-width: 900px; margin: 0 auto; }
+.cp-qr-tools .cp-btn { margin: 0 6px 6px 0; }
+.cp-qr-poster { margin: 18px auto 40px; padding: 36px 28px; max-width: 560px; text-align: center; background: #fff; border: 1px solid var( --cp-line, #ecdfd0 ); border-radius: 22px; box-shadow: 0 10px 30px rgba( 93, 64, 45, 0.1 ); }
+.cp-qr-logo { max-height: 70px; max-width: 220px; object-fit: contain; }
+.cp-qr-poster h2 { margin: 10px 0 4px; font-size: 26px; }
+.cp-qr-call { margin: 0 0 18px; font-size: 22px; font-weight: 800; color: var( --cp-accent, #c0643f ); }
+.cp-qr-code svg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto; }
+.cp-qr-steps { margin: 18px 0 6px; font-size: 15px; line-height: 1.5; }
+.cp-qr-url { margin: 0; font-size: 12px; color: var( --cp-muted, #8b776a ); word-break: break-all; }
+@media print {
+	@page { size: A4 portrait; margin: 0; }
+	body.cp-view-qr { background: #fff; }
+	body.cp-view-qr .cp-top, body.cp-view-qr .cp-qr-tools, body.cp-view-qr #wpadminbar { display: none !important; }
+	body.cp-view-qr .cp-main { padding: 0; }
+	body.cp-view-qr .cp-qr-poster { margin: 22mm auto 0; max-width: 160mm; border: 0; box-shadow: none; padding: 0; }
+	body.cp-view-qr .cp-qr-code svg { max-width: 120mm; }
+	body.cp-view-qr .cp-qr-call { font-size: 30px; }
+	body.cp-view-qr .cp-qr-poster h2 { font-size: 34px; }
+	body.cp-view-qr .cp-qr-steps { font-size: 17px; }
+}

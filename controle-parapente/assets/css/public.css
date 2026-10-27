@@ -129,3 +129,14 @@
 .cp-verdict-non_navigable { background: #b32d2e; color: #fff; }
 .cp-status-attente { background: #fde7d9; color: #8a3a00; }
 .cp-status-annulee { background: #f6dcdc; color: #8a1f1f; }
+
+/* Questions supplémentaires et dépôt sur place (téléphone) */
+.cp-question { margin: 0 0 1em; }
+.cp-question__label { display: block; font-weight: 600; margin-bottom: 0.35em; }
+.cp-choices { display: flex; flex-wrap: wrap; gap: 0.5em; }
+.cp-choice { display: inline-flex; align-items: center; gap: 0.4em; padding: 0.55em 0.9em; border: 1px solid rgba( 0, 0, 0, 0.18 ); border-radius: 999px; cursor: pointer; }
+.cp-choice:has( input:checked ) { border-color: currentColor; font-weight: 700; }
+.cp-form input, .cp-form select, .cp-form textarea { font-size: 16px; } /* évite le zoom automatique sur iPhone */
+
+.cp-choice { flex-direction: row; }
+.cp-choice input { display: inline-block; width: auto; margin: 0; }

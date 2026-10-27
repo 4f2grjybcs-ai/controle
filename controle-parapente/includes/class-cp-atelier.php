@@ -16,6 +16,8 @@ class CP_Atelier {
 
 	const SHORTCODE   = 'cp_atelier';
 	const PAGE_OPTION = 'cp_atelier_page_id';
+	const DEPOT_OPTION = 'cp_depot_page_id';
+	const META_NEW    = '_cp_new'; // Fiche créée par le client (QR code), pas encore ouverte par l'atelier.
 	const PER_PAGE    = 25;
 
 	/** @var int ID de la page atelier en cours d'affichage. */
@@ -25,6 +27,7 @@ class CP_Atelier {
 		add_shortcode( self::SHORTCODE, '__return_empty_string' );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render' ), 5 );
 		add_action( 'admin_init', array( __CLASS__, 'ensure_page' ) );
+		add_action( 'admin_init', array( __CLASS__, 'ensure_depot_page' ) );
 		add_action( 'admin_bar_menu', array( __CLASS__, 'admin_bar' ), 80 );
 	}
 
@@ -55,6 +58,36 @@ class CP_Atelier {
 		if ( $id && ! is_wp_error( $id ) ) {
 			update_option( self::PAGE_OPTION, $id, false );
 		}
+	}
+
+	/**
+	 * Page publique « Dépôt » ouverte par le QR code (créée automatiquement).
+	 */
+	public static function ensure_depot_page() {
+		if ( ! current_user_can( 'publish_pages' ) ) {
+			return;
+		}
+		$id = (int) get_option( self::DEPOT_OPTION );
+		if ( $id && 'page' === get_post_type( $id ) && 'trash' !== get_post_status( $id ) ) {
+			return;
+		}
+		$id = wp_insert_post(
+			array(
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_title'   => CP_Settings::get( 'depot_title' ),
+				'post_name'    => 'depot',
+				'post_content' => '[cp_depot]',
+			)
+		);
+		if ( $id && ! is_wp_error( $id ) ) {
+			update_option( self::DEPOT_OPTION, $id, false );
+		}
+	}
+
+	public static function depot_url() {
+		$id = (int) get_option( self::DEPOT_OPTION );
+		return $id ? get_permalink( $id ) : '';
 	}
 
 	public static function url( $args = array() ) {
@@ -100,7 +133,10 @@ class CP_Atelier {
 		// phpcs:ignore WordPress.Security.NonceVerification
 		$fiche = isset( $_GET['fiche'] ) ? absint( $_GET['fiche'] ) : 0;
 		if ( $fiche && CP_Post_Type::POST_TYPE === get_post_type( $fiche ) && current_user_can( 'edit_post', $fiche ) ) {
+			delete_post_meta( $fiche, self::META_NEW );
 			self::render_shell( 'fiche', $fiche );
+		} elseif ( isset( $_GET['vue'] ) && 'qr' === $_GET['vue'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+			self::render_shell( 'qr' );
 		} else {
 			self::render_shell( 'list' );
 		}
@@ -223,10 +259,14 @@ class CP_Atelier {
 		}
 		wp_enqueue_style( 'cp-atelier', CP_URL . 'assets/css/atelier.css', array(), cp_asset_ver( 'assets/css/atelier.css' ) );
 		wp_enqueue_script( 'cp-atelier', CP_URL . 'assets/js/atelier.js', array(), cp_asset_ver( 'assets/js/atelier.js' ), true );
+		if ( 'qr' === $view ) {
+			wp_enqueue_script( 'cp-qrcode', CP_URL . 'assets/vendor/qrcode-generator.js', array(), cp_asset_ver( 'assets/vendor/qrcode-generator.js' ), true );
+		}
 
 		$titles = array(
 			'login' => __( 'Espace atelier', 'controle-parapente' ),
 			'list'  => __( 'Contrôles', 'controle-parapente' ),
+			'qr'    => __( 'QR code de dépôt', 'controle-parapente' ),
 			'fiche' => $post_id ? (string) get_post_meta( $post_id, CP_Controle::META_REFERENCE, true ) : '',
 		);
 		?><!DOCTYPE html>
@@ -255,6 +295,7 @@ class CP_Atelier {
 		<?php if ( 'login' !== $view ) : ?>
 			<nav class="cp-top-nav">
 				<a href="<?php echo esc_url( self::url() ); ?>" class="<?php echo 'list' === $view ? 'is-active' : ''; ?>"><?php esc_html_e( 'Contrôles', 'controle-parapente' ); ?></a>
+				<a href="<?php echo esc_url( self::url( array( 'vue' => 'qr' ) ) ); ?>" class="<?php echo 'qr' === $view ? 'is-active' : ''; ?>"><?php esc_html_e( 'QR dépôt', 'controle-parapente' ); ?></a>
 				<?php self::new_button(); ?>
 			</nav>
 			<div class="cp-top-user">
@@ -271,12 +312,14 @@ class CP_Atelier {
 			self::view_login();
 		} elseif ( 'fiche' === $view ) {
 			self::view_fiche( $post_id );
+		} elseif ( 'qr' === $view ) {
+			self::view_qr();
 		} else {
 			self::view_list();
 		}
 		?>
 	</main>
-	<?php wp_print_scripts( array( 'cp-admin', 'cp-trim', 'cp-photos', 'cp-atelier' ) ); ?>
+	<?php wp_print_scripts( array( 'cp-admin', 'cp-trim', 'cp-photos', 'cp-qrcode', 'cp-atelier' ) ); ?>
 </body>
 </html>
 		<?php
@@ -315,6 +358,40 @@ class CP_Atelier {
 	}
 
 	/* ---------- Liste ---------- */
+
+	/**
+	 * Affiche le QR code menant au formulaire de dépôt, prêt à imprimer (affiche A4).
+	 */
+	private static function view_qr() {
+		self::ensure_depot_page();
+		$url      = self::depot_url();
+		$settings = CP_Settings::get();
+		$logo     = CP_Settings::logo_url();
+		?>
+		<div class="cp-qr-page">
+			<div class="cp-qr-tools">
+				<h1><?php esc_html_e( 'QR code de dépôt', 'controle-parapente' ); ?></h1>
+				<p class="cp-muted"><?php esc_html_e( 'Le client scanne ce code en déposant sa voile, remplit ses coordonnées, l\'aile, ses commentaires et vos questions : un nouveau contrôle « Aile réceptionnée » apparaît aussitôt dans la liste, marqué « Nouveau ».', 'controle-parapente' ); ?></p>
+				<p>
+					<button type="button" class="cp-btn cp-btn--primary" onclick="window.print()"><?php esc_html_e( 'Imprimer l\'affiche', 'controle-parapente' ); ?></button>
+					<a class="cp-btn cp-qr-png" href="#" download="qr-depot.png"><?php esc_html_e( 'Télécharger l\'image du QR code', 'controle-parapente' ); ?></a>
+					<a class="cp-btn" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Tester le formulaire', 'controle-parapente' ); ?></a>
+				</p>
+				<p class="cp-muted"><?php esc_html_e( 'Questions, titres et champs du formulaire : Réglages → Formulaire public.', 'controle-parapente' ); ?></p>
+			</div>
+			<section class="cp-qr-poster">
+				<?php if ( $logo ) : ?>
+					<img class="cp-qr-logo" src="<?php echo esc_url( $logo ); ?>" alt="" />
+				<?php endif; ?>
+				<h2><?php echo esc_html( $settings['workshop_name'] ); ?></h2>
+				<p class="cp-qr-call"><?php echo esc_html( $settings['depot_poster'] ); ?></p>
+				<div class="cp-qr-code" data-url="<?php echo esc_attr( $url ); ?>"></div>
+				<p class="cp-qr-steps"><?php esc_html_e( '1. Scannez avec l\'appareil photo de votre téléphone · 2. Remplissez le formulaire · 3. Remettez votre voile à l\'atelier', 'controle-parapente' ); ?></p>
+				<p class="cp-qr-url"><?php echo esc_html( preg_replace( '#^https?://#', '', $url ) ); ?></p>
+			</section>
+		</div>
+		<?php
+	}
 
 	private static function view_list() {
 		// phpcs:disable WordPress.Security.NonceVerification -- filtres de lecture.
@@ -408,7 +485,11 @@ class CP_Atelier {
 						$link = self::url( array( 'fiche' => $p->ID ) );
 						?>
 						<tr data-href="<?php echo esc_url( $link ); ?>">
-							<td><a href="<?php echo esc_url( $link ); ?>"><strong><?php echo esc_html( $d['reference'] ); ?></strong></a></td>
+							<td>
+								<a href="<?php echo esc_url( $link ); ?>"><strong><?php echo esc_html( $d['reference'] ); ?></strong></a>
+								<?php if ( get_post_meta( $p->ID, self::META_NEW, true ) ) : ?><span class="cp-new"><?php esc_html_e( 'Nouveau', 'controle-parapente' ); ?></span><?php endif; ?>
+								<?php if ( 'qr' === $d['source'] ) : ?><span class="cp-src" title="<?php esc_attr_e( 'Enregistrée par le client avec le QR code', 'controle-parapente' ); ?>">QR</span><?php endif; ?>
+							</td>
 							<td><?php echo esc_html( get_the_date( '', $p ) ); ?></td>
 							<td><?php echo esc_html( $d['pilot_name'] ? $d['pilot_name'] : '—' ); ?></td>
 							<td>

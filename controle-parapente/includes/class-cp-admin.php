@@ -232,6 +232,13 @@ class CP_Admin {
 		self::select( 'drop_off', __( 'Mode de dépôt', 'controle-parapente' ), $d['drop_off'], CP_Controle::drop_off_modes() );
 		self::textarea( 'client_notes', __( 'Remarques du client (incidents, dommages connus…)', 'controle-parapente' ), $d['client_notes'] );
 		echo '</div>';
+		if ( $d['form_answers'] ) {
+			echo '<h4>' . esc_html( 'qr' === $d['source'] ? __( 'Réponses du client (dépôt par QR code)', 'controle-parapente' ) : __( 'Réponses du client', 'controle-parapente' ) ) . '</h4><table class="widefat striped cp-answers"><tbody>';
+			foreach ( $d['form_answers'] as $qa ) {
+				printf( '<tr><th>%s</th><td>%s</td></tr>', esc_html( $qa['q'] ), esc_html( '' !== $qa['a'] ? $qa['a'] : '—' ) );
+			}
+			echo '</tbody></table>';
+		}
 	}
 
 	/**
@@ -547,6 +554,10 @@ class CP_Admin {
 	 */
 	public static function process( $post_id, array $raw, $notify, $old_status = null ) {
 		$data       = CP_Controle::sanitize( $raw, true );
+		// Réponses du formulaire client et origine (QR code) : conservées telles qu'envoyées par le client.
+		$stored               = CP_Controle::get( $post_id );
+		$data['form_answers'] = $stored['form_answers'];
+		$data['source']       = $stored['source'];
 		$old_status = null === $old_status ? (string) get_post_meta( $post_id, CP_Controle::META_STATUS, true ) : (string) $old_status;
 
 		if ( '' === $data['next_date'] && '' !== $data['check_date'] && '' !== $data['verdict'] && 'non_navigable' !== $data['verdict'] ) {

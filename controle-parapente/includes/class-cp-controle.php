@@ -398,6 +398,8 @@ class CP_Controle {
 			'safety_notice'     => '',
 			'sign_report'       => '1',
 			'photos'            => array(),
+			'form_answers'      => array(),
+			'source'            => '',
 			'temperature'       => '',
 			'humidity'          => '',
 			'next_hours'        => '',

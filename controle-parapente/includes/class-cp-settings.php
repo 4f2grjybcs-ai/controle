@@ -165,6 +165,21 @@ class CP_Settings {
 			'form_intro'          => array( 'formulaire', 'textarea', __( 'Texte d\'introduction du formulaire de demande', 'controle-parapente' ), '' ),
 			'form_consent'        => array( 'formulaire', 'textarea', __( 'Texte de consentement (RGPD)', 'controle-parapente' ), __( 'J\'accepte que mes données soient utilisées pour traiter ma demande et me rappeler l\'échéance du prochain contrôle.', 'controle-parapente' ) ),
 			'form_success'        => array( 'formulaire', 'textarea', __( 'Message après envoi', 'controle-parapente' ), __( 'Merci ! Votre demande a bien été enregistrée sous la référence {reference}. Un e-mail de confirmation vient de vous être envoyé.', 'controle-parapente' ) ),
+			'h_form_sections'     => array( 'formulaire', 'heading', __( 'Sections du formulaire client', 'controle-parapente' ) ),
+			'form_title_contact'  => array( 'formulaire', 'text', __( 'Titre : coordonnées', 'controle-parapente' ), __( 'Vos coordonnées', 'controle-parapente' ) ),
+			'form_show_address'   => array( 'formulaire', 'checkbox', __( 'Demander l\'adresse postale', 'controle-parapente' ), '1' ),
+			'form_title_equipment' => array( 'formulaire', 'text', __( 'Titre : équipement', 'controle-parapente' ), __( 'Votre équipement', 'controle-parapente' ) ),
+			'form_show_history'   => array( 'formulaire', 'checkbox', __( 'Demander année, homologation, heures de vol et dernier contrôle', 'controle-parapente' ), '1' ),
+			'form_title_services' => array( 'formulaire', 'text', __( 'Titre : prestations', 'controle-parapente' ), __( 'Prestations souhaitées', 'controle-parapente' ) ),
+			'form_show_services'  => array( 'formulaire', 'checkbox', __( 'Proposer le choix des prestations', 'controle-parapente' ), '1' ),
+			'form_notes_label'    => array( 'formulaire', 'text', __( 'Libellé du champ commentaires', 'controle-parapente' ), __( 'Commentaires (incidents, arbre, amerrissage, dommages connus…)', 'controle-parapente' ) ),
+			'form_title_questions' => array( 'formulaire', 'text', __( 'Titre : questions supplémentaires', 'controle-parapente' ), __( 'Quelques questions', 'controle-parapente' ) ),
+			'form_questions'      => array( 'formulaire', 'lines', __( 'Questions supplémentaires', 'controle-parapente' ), "Votre aile a-t-elle subi un incident (arbre, eau, choc) ? | oui-non | obligatoire\nAutorisez-vous le remplacement des pièces nécessaires (suspentes, maillons) ? | oui-non\nQuand souhaitez-vous récupérer votre aile ? | date\nComment préférez-vous être prévenu ? | choix : SMS / E-mail / Téléphone", __( 'Une par ligne : « Question | type | obligatoire ». Types : texte, oui-non, nombre, date, choix : A / B / C. Les réponses s\'affichent dans la fiche (onglet Client & aile).', 'controle-parapente' ) ),
+			'h_depot'             => array( 'formulaire', 'heading', __( 'Dépôt sur place (QR code)', 'controle-parapente' ) ),
+			'depot_title'         => array( 'formulaire', 'text', __( 'Titre de la page de dépôt', 'controle-parapente' ), __( 'Dépôt de votre voile', 'controle-parapente' ), __( 'Utilisé à la création de la page « Dépôt » ; ensuite, modifiez le titre de la page dans WordPress.', 'controle-parapente' ) ),
+			'depot_intro'         => array( 'formulaire', 'textarea', __( 'Texte d\'accueil de la page de dépôt', 'controle-parapente' ), __( 'Bienvenue ! Remplissez ce formulaire pour enregistrer votre aile, puis remettez-la à l\'atelier.', 'controle-parapente' ) ),
+			'depot_success'       => array( 'formulaire', 'textarea', __( 'Message après le dépôt', 'controle-parapente' ), __( 'Merci ! Votre aile est enregistrée sous la référence {reference}. Vous pouvez la remettre à l\'atelier ; un e-mail de confirmation vient de vous être envoyé.', 'controle-parapente' ) ),
+			'depot_poster'        => array( 'formulaire', 'text', __( 'Texte de l\'affiche QR code', 'controle-parapente' ), __( 'Scannez pour déposer votre voile', 'controle-parapente' ) ),
 		);
 	}
 
@@ -576,6 +591,8 @@ class CP_Settings {
 							<h2><?php esc_html_e( 'Pages et shortcodes', 'controle-parapente' ); ?></h2>
 							<p><code>[cp_atelier]</code> — <?php esc_html_e( 'espace atelier (réservé à l\'équipe connectée).', 'controle-parapente' ); ?></p>
 							<p><code>[cp_demande_controle]</code> — <?php esc_html_e( 'formulaire de demande de contrôle.', 'controle-parapente' ); ?></p>
+							<p><code>[cp_depot]</code> — <?php esc_html_e( 'formulaire de dépôt sur place (page « Dépôt » créée automatiquement, ouverte par le QR code).', 'controle-parapente' ); ?></p>
+							<p><a class="button button-primary" href="<?php echo esc_url( CP_Atelier::url( array( 'vue' => 'qr' ) ) ); ?>" target="_blank"><?php esc_html_e( 'Afficher / imprimer le QR code de dépôt', 'controle-parapente' ); ?></a></p>
 							<p><code>[cp_suivi_controle]</code> — <?php esc_html_e( 'suivi d\'un contrôle par le client (référence + e-mail).', 'controle-parapente' ); ?></p>
 						<?php endif; ?>
 					</div>
